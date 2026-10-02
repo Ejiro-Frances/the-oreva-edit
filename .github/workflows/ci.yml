@@ -1,0 +1,88 @@
+name: Commerce checks
+on:
+  pull_request:
+  push:
+    branches: [main, master]
+permissions:
+  contents: read
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+jobs:
+  quality:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    env:
+      DATA_MODE: fixture
+      ALLOW_TEST_ORDERS: 'true'
+      NEXT_PUBLIC_SITE_URL: http://localhost:3100
+      EMAIL_MODE: capture
+      PLAYWRIGHT_EXTERNAL_SERVER: 'true'
+      FIXTURE_ORDER_FILE: .data/e2e-orders.json
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '24'
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile
+      - run: pnpm format:check
+      - run: pnpm lint
+      - run: pnpm typecheck
+      - run: pnpm test
+      - run: pnpm build
+      - run: pnpm exec playwright install --with-deps chromium
+      - name: Production browser tests
+        run: |
+          pnpm exec next start --port 3100 > /tmp/oreva-next.log 2>&1 &
+          for attempt in {1..30}; do
+            if curl --fail --silent http://localhost:3100 > /dev/null; then break; fi
+            sleep 1
+          done
+          pnpm test:e2e
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: browser-results
+          path: |
+            playwright-report
+            test-results
+          retention-days: 7
+  supabase:
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    env:
+      E2E_SUPABASE: 'true'
+      E2E_DATA_MODE: supabase
+      DATA_MODE: supabase
+      ALLOW_TEST_ORDERS: 'true'
+      NEXT_PUBLIC_SITE_URL: http://localhost:3100
+      EMAIL_MODE: capture
+      SUPABASE_TELEMETRY_DISABLED: '1'
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '24'
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile
+      - uses: supabase/setup-cli@v1
+        with:
+          version: 2.119.0
+      - run: supabase start
+      - name: Export isolated local service configuration
+        run: |
+          supabase status -o json > /tmp/oreva-supabase.json
+          node scripts/ci-supabase-env.mjs /tmp/oreva-supabase.json >> "$GITHUB_ENV"
+      - run: pnpm exec playwright install --with-deps chromium
+      - run: pnpm exec playwright test authenticated.spec.ts --project=desktop
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: supabase-browser-results
+          path: |
+            playwright-report
+            test-results
+          retention-days: 7

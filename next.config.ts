@@ -1,7 +1,43 @@
-import type { NextConfig } from "next";
-
-const nextConfig: NextConfig = {
-  /* config options here */
+import type { NextConfig } from 'next';
+const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
+const config: NextConfig = {
+  allowedDevOrigins: ['127.0.0.1'],
+  poweredByHeader: false,
+  devIndicators: false,
+  images: {
+    remotePatterns: supabaseUrl
+      ? [
+          {
+            protocol: new URL(supabaseUrl).protocol.replace(':', '') as 'https' | 'http',
+            hostname: new URL(supabaseUrl).hostname,
+            port: new URL(supabaseUrl).port,
+            pathname: '/storage/v1/object/public/product-images/**',
+          },
+        ]
+      : [],
+  },
+  async headers() {
+    return [
+      {
+        source: '/:path*',
+        headers: [
+          { key: 'X-Content-Type-Options', value: 'nosniff' },
+          { key: 'X-Frame-Options', value: 'DENY' },
+          { key: 'Referrer-Policy', value: 'strict-origin-when-cross-origin' },
+          { key: 'Permissions-Policy', value: 'camera=(), microphone=(), geolocation=()' },
+          {
+            key: 'Content-Security-Policy',
+            value:
+              "base-uri 'self'; object-src 'none'; frame-ancestors 'none'; form-action 'self' https://accounts.google.com",
+          },
+        ],
+      },
+      { source: '/api/:path*', headers: [{ key: 'Cache-Control', value: 'no-store' }] },
+      {
+        source: '/account/:path*',
+        headers: [{ key: 'Cache-Control', value: 'private, no-store' }],
+      },
+    ];
+  },
 };
-
-export default nextConfig;
+export default config;

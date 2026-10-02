@@ -1,0 +1,13 @@
+node_modules
+.next
+.cache
+.data
+artifacts
+coverage
+playwright-report
+test-results
+pnpm-lock.yaml
+public
+AGENTS.md
+CLAUDE.md
+supabase/seed.sql
