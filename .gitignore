@@ -39,3 +39,12 @@ yarn-error.log*
 # typescript
 *.tsbuildinfo
 next-env.d.ts
+
+# Local commerce/test artifacts
+.cache/
+.pnpm-store/
+.data/
+artifacts/
+playwright-report/
+test-results/
+!.env.example

@@ -1,0 +1,52 @@
+export type Variant = {
+  id: string;
+  sku: string;
+  attributes: Record<string, string>;
+  price: number | null;
+  stock: number;
+  image?: string;
+};
+export type Product = {
+  seo_title?: string;
+  seo_description?: string;
+  id: string;
+  name: string;
+  slug: string;
+  description: string;
+  short_description: string;
+  category_slug?: string;
+  category: string;
+  audience: string;
+  tags: string[];
+  status: 'draft' | 'active' | 'archived';
+  price: number;
+  compare_at: number | null;
+  images: string[];
+  alt: string;
+  variants: Variant[];
+  details: string[];
+  care: string;
+  featured: boolean;
+  created_at: string;
+  fixture: boolean;
+};
+export type Category = {
+  id: string;
+  name: string;
+  slug: string;
+  parent_id: string | null;
+  position: number;
+  active: boolean;
+};
+export type CartLine = { variantId: string; quantity: number };
+export type DeliveryZone = {
+  id: string;
+  name: string;
+  states: string[];
+  rate: number;
+  free_threshold: number | null;
+  min_days: number;
+  max_days: number;
+  active: boolean;
+  fixture: boolean;
+};
