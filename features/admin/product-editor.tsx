@@ -32,6 +32,7 @@ export type EditableVariant = {
   expectedStock?: number;
   price: number | null;
   active: boolean;
+  image?: string | null;
 };
 export function ProductEditor({
   product,
@@ -182,7 +183,7 @@ export function ProductEditor({
           </Field>
         </div>
       </fieldset>
-      <VariantEditor variants={variants} setVariants={setVariants} />
+      <VariantEditor variants={variants} setVariants={setVariants} images={images} />
       {product.id && (
         <fieldset>
           <legend>04 / Product photography</legend>

@@ -1,6 +1,6 @@
 # Database and integrity
 
-Five versioned migrations define the commerce schema and secured transactions; later migrations add incremental changes. Run them in filename order with Supabase CLI. The development seed is generated from the same typed fixtures used in offline preview.
+Versioned migrations define the commerce schema and secured transactions. Run them in filename order with Supabase CLI. The development seed is generated from the same typed fixtures used in offline preview.
 
 ## Tables
 
@@ -21,6 +21,16 @@ All public-schema tables enable RLS. Public reads are restricted to active catal
 create_test_order is callable only by service_role; server routes validate all input before invoking it. It locks variants in a stable order, validates availability and quantity, computes authoritative prices and delivery, inserts snapshots, decrements stock and adds an email outbox record in a single transaction. A per-idempotency-key advisory lock and unique constraint prevent duplicate orders. An idempotency retry must also match guest hash and customer UUID.
 
 save_product is admin-only and atomic. Existing products use updated_at optimistic concurrency; variant stock must match the editor's expected stock before an adjustment. Publishing requires a photograph and active variant. Historical variants are deactivated, not deleted.
+
+## Colour photography
+
+Apply `202610030001_variant_images.sql` before deploying the variant photograph editor. `product_variants.image` references a URL belonging to that same product; a composite foreign key prevents assigning another product's media. Removing an image clears variant links, while existing order snapshot URLs remain unchanged. The order transaction saves the selected variant's photograph.
+
+In Admin products, upload the colour photographs, then select a **Photograph** for each matching variant in **Options & inventory** and save. Assign the same image to every size of that colour. Choose **Make primary** in product photography to control the colour selected when a customer opens the page. Attributes named `Colour` or `Color` (case insensitive) are recognised. Size remains an explicit choice. Single-colour legacy products use their primary photograph; ambiguous unmapped multi-colour products require a choice rather than guessing from pixels.
+
+Fixture mode contains 24 products: the original 12 plus a tank, trousers, men's tee, heels, necklace, sunglasses, girls' dress, boys' tee, mini skirt, men's shorts, bracelet and woven hat. The linen shirt, carry bag, tank, trousers, skirt and shorts have multiple colours; earrings, necklaces and bracelets have gold and silver finishes. Trousers demonstrate colour × size × length inventory and length price overrides; necklaces and bracelets use chain lengths instead of clothing sizes. Each combination has its own SKU, image and stock, with deliberately unavailable combinations for testing. Skirts and Shorts are additional category records; existing category and variant IDs stay stable when refreshing the seed.
+
+`pnpm seed:generate` regenerates the development SQL. Reapplying that seed to a development database adds the new products/images/variants and refreshes matching fixture image, attribute and price override fields without resetting existing stock. Catalogue additions are seed data, so `supabase db push` alone does not insert these products. No additional schema migration is needed beyond `202610030001_variant_images.sql`. Never seed a production database. The edited photographs are development colour studies only; replace them with accurate product photographs before sales.
 
 Collection membership and media reordering use atomic administrator functions. remove_product_image preserves a published product?s last photograph. manage_order records internal notes, confirms/completes valid orders, and restores stock once when an unpaid unshipped order is cancelled.
 

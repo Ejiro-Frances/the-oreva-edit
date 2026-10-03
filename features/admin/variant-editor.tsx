@@ -5,9 +5,11 @@ import type { EditableVariant } from './product-editor';
 export function VariantEditor({
   variants,
   setVariants,
+  images,
 }: {
   variants: EditableVariant[];
   setVariants: Dispatch<SetStateAction<EditableVariant[]>>;
+  images: { url: string; alt: string }[];
 }) {
   const [optionName, setOptionName] = useState('Size');
   const [optionValues, setOptionValues] = useState('S, M, L');
@@ -21,6 +23,10 @@ export function VariantEditor({
       <p className="caption">
         Each sellable combination has its own SKU and stock. Existing variants can be deactivated;
         historical order references are retained.
+      </p>
+      <p className="caption">
+        Upload a photograph for each colour, then assign it to the matching variants below. The
+        colour linked to the primary photograph is selected when customers open the product.
       </p>
       <div className="form-grid" style={{ marginTop: 15 }}>
         <Field id="option-name" label="Option name">
@@ -81,6 +87,7 @@ export function VariantEditor({
               <th>SKU</th>
               <th>Stock</th>
               <th>Price override (₦)</th>
+              <th>Photograph</th>
               <th>Active</th>
             </tr>
           </thead>
@@ -126,6 +133,21 @@ export function VariantEditor({
                     }
                     style={{ width: 100 }}
                   />
+                </td>
+                <td>
+                  <select
+                    aria-label={`Photograph for variant ${i + 1}`}
+                    value={v.image || ''}
+                    onChange={(e) => update(i, 'image', e.target.value || null)}
+                    style={{ maxWidth: 190 }}
+                  >
+                    <option value="">Not assigned</option>
+                    {images.map((image, index) => (
+                      <option key={image.url} value={image.url}>
+                        {`Image ${index + 1}${index === 0 ? ' (primary)' : ''}: ${image.alt || 'Product photograph'}`}
+                      </option>
+                    ))}
+                  </select>
                 </td>
                 <td>
                   <input

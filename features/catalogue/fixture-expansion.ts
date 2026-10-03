@@ -1,0 +1,290 @@
+import type { Product } from './types';
+
+type OptionValue = string | { label: string; extra: number };
+type FixtureStyle = {
+  number: number;
+  name: string;
+  slug: string;
+  category: string;
+  audience: string;
+  price: number;
+  summary: string;
+  description: string;
+  colours: { name: string; image: string }[];
+  options: { name: string; values: OptionValue[] }[];
+  details: string[];
+  unavailable?: Record<string, string>[];
+};
+
+const styles: FixtureStyle[] = [
+  {
+    number: 13,
+    name: 'The Ada everyday tank',
+    slug: 'ada-everyday-tank',
+    category: 'Tops',
+    audience: 'women',
+    price: 14500,
+    summary: 'An easy scoop neck. A little room to move.',
+    description:
+      'A simple sleeveless shape for warm afternoons, layered mornings and everything in between. Wear it loose with trousers or tucked into your favourite skirt.',
+    colours: [
+      { name: 'White', image: '/images/everyday-tank.webp' },
+      { name: 'Sage', image: '/images/everyday-tank-sage.webp' },
+      { name: 'Rose', image: '/images/everyday-tank-rose.webp' },
+    ],
+    options: [{ name: 'Size', values: ['XS', 'S', 'M', 'L', 'XL'] }],
+    details: ['Scoop neckline', 'Sleeveless silhouette', 'Easy shape for layering'],
+    unavailable: [{ Colour: 'Rose', Size: 'XL' }],
+  },
+  {
+    number: 14,
+    name: 'The Daybreak trousers',
+    slug: 'daybreak-trousers',
+    category: 'Trousers',
+    audience: 'women',
+    price: 29500,
+    summary: 'A relaxed leg, with room for the whole day.',
+    description:
+      'Pull-on trousers with an adjustable drawstring waist and a clean, easy line. Choose your colour, size and preferred length; the longer option has its own price and stock.',
+    colours: [
+      { name: 'Sand', image: '/images/daybreak-trousers.webp' },
+      { name: 'Olive', image: '/images/daybreak-trousers-olive.webp' },
+      { name: 'Ink', image: '/images/daybreak-trousers-ink.webp' },
+    ],
+    options: [
+      { name: 'Size', values: ['S', 'M', 'L', 'XL'] },
+      { name: 'Length', values: ['Regular', { label: 'Long', extra: 2000 }] },
+    ],
+    details: ['Drawstring waistband', 'Relaxed leg', 'Regular and long length options'],
+    unavailable: [{ Colour: 'Ink', Size: 'XL', Length: 'Long' }],
+  },
+  {
+    number: 15,
+    name: 'The clean-cut tee',
+    slug: 'clean-cut-tee',
+    category: 'Tops',
+    audience: 'men',
+    price: 17500,
+    summary: 'The white tee that gets straight to the point.',
+    description:
+      'A crew neck and a straightforward short sleeve. Pair with an open shirt, relaxed trousers or your everyday denim.',
+    colours: [{ name: 'White', image: '/images/clean-cut-tee.webp' }],
+    options: [{ name: 'Size', values: ['S', 'M', 'L', 'XL', 'XXL'] }],
+    details: ['Crew neckline', 'Short sleeves', 'Regular silhouette'],
+  },
+  {
+    number: 16,
+    name: 'The Studio heels',
+    slug: 'studio-heels',
+    category: 'Shoes',
+    audience: 'women',
+    price: 27500,
+    summary: 'A pointed toe and a warm tan finish.',
+    description:
+      'A clean pair of pumps to finish a dress or bring a sharper line to everyday trousers. Check the individual size guide before choosing your pair.',
+    colours: [{ name: 'Tan', image: '/images/studio-heels.webp' }],
+    options: [{ name: 'Size', values: ['36', '37', '38', '39', '40', '41'] }],
+    details: ['Pointed toe', 'Slim heel', 'EU sizing'],
+    unavailable: [{ Size: '36' }],
+  },
+  {
+    number: 17,
+    name: 'The fine-line necklace',
+    slug: 'fine-line-necklace',
+    category: 'Jewellery',
+    audience: 'women',
+    price: 14500,
+    summary: 'A fine chain, worn your way.',
+    description:
+      'A quiet finishing touch on its own, or a starting point for a few favourite layers. Choose a gold-tone or silver-tone finish and your preferred chain length.',
+    colours: [
+      { name: 'Gold', image: '/images/fine-line-necklace.webp' },
+      { name: 'Silver', image: '/images/fine-line-necklace-silver.webp' },
+    ],
+    options: [
+      {
+        name: 'Length',
+        values: ['40 cm', { label: '45 cm', extra: 1500 }, { label: '50 cm', extra: 3000 }],
+      },
+    ],
+    details: [
+      'Fine chain silhouette',
+      'Three length options',
+      'Gold-tone and silver-tone finishes',
+    ],
+  },
+  {
+    number: 18,
+    name: 'The Sunroom frames',
+    slug: 'sunroom-frames',
+    category: 'Accessories',
+    audience: 'women',
+    price: 16500,
+    summary: 'Warm frames for bright afternoons.',
+    description:
+      'A light, translucent frame with soft brown lenses. An easy accessory to slip into your everyday bag.',
+    colours: [{ name: 'Honey', image: '/images/sunroom-frames.webp' }],
+    options: [{ name: 'Size', values: ['One size'] }],
+    details: ['Translucent frame', 'Brown-tinted lenses', 'Lightweight everyday frame'],
+  },
+  {
+    number: 19,
+    name: 'The little occasion dress',
+    slug: 'little-occasion-dress',
+    category: 'Kids clothing',
+    audience: 'girls',
+    price: 24500,
+    summary: 'A little dress for days to remember.',
+    description:
+      'An ivory dress with soft ruffle details and an easy shape. Made for the family photograph and the playtime that follows.',
+    colours: [{ name: 'Ivory', image: '/images/little-occasion-dress.webp' }],
+    options: [{ name: 'Size', values: ['2–3 years', '4–5 years', '6–7 years'] }],
+    details: ['Ruffle shoulder detail', 'Textured dress silhouette', 'Sized by age'],
+  },
+  {
+    number: 20,
+    name: 'The junior everyday tee',
+    slug: 'junior-everyday-tee',
+    category: 'Kids clothing',
+    audience: 'boys',
+    price: 12500,
+    summary: 'A simple tee for their everyday rotation.',
+    description:
+      'An easy black crew-neck tee with a relaxed shape. Wear with shorts on warm days or under an open shirt when the evening cools.',
+    colours: [{ name: 'Ink', image: '/images/junior-everyday-tee.webp' }],
+    options: [{ name: 'Size', values: ['8–9 years', '10–11 years', '12–13 years'] }],
+    details: ['Crew neckline', 'Short sleeves', 'Sized by age'],
+  },
+  {
+    number: 21,
+    name: 'The Daylight mini skirt',
+    slug: 'daylight-mini-skirt',
+    category: 'Skirts',
+    audience: 'women',
+    price: 25500,
+    summary: 'A clean line and a shorter hem.',
+    description:
+      'A straight mini skirt with a neat waistband and simple seams. Wear with a tucked-in tee for the afternoon, or a loose shirt when the evening arrives.',
+    colours: [
+      { name: 'White', image: '/images/daylight-skirt.webp' },
+      { name: 'Stone', image: '/images/daylight-skirt-stone.webp' },
+      { name: 'Oxblood', image: '/images/daylight-skirt-oxblood.webp' },
+    ],
+    options: [{ name: 'Size', values: ['XS', 'S', 'M', 'L', 'XL'] }],
+    details: ['Straight silhouette', 'Mini length', 'Belt loops at the waist'],
+    unavailable: [{ Colour: 'Stone', Size: 'XL' }],
+  },
+  {
+    number: 22,
+    name: 'The weekend drawstring shorts',
+    slug: 'weekend-drawstring-shorts',
+    category: 'Shorts',
+    audience: 'men',
+    price: 22500,
+    summary: 'An easy fit for unhurried days.',
+    description:
+      'Drawstring shorts with side pockets and a relaxed leg. Pair with the everyday linen shirt, or keep things simple with your favourite tee.',
+    colours: [
+      { name: 'Sand', image: '/images/weekend-shorts.webp' },
+      { name: 'Olive', image: '/images/weekend-shorts-olive.webp' },
+      { name: 'Navy', image: '/images/weekend-shorts-navy.webp' },
+    ],
+    options: [{ name: 'Size', values: ['S', 'M', 'L', 'XL', 'XXL'] }],
+    details: ['Drawstring waist', 'Side pockets', 'Relaxed leg'],
+    unavailable: [{ Colour: 'Navy', Size: 'XXL' }],
+  },
+  {
+    number: 23,
+    name: 'The woven-chain bracelet',
+    slug: 'woven-chain-bracelet',
+    category: 'Jewellery',
+    audience: 'women',
+    price: 13500,
+    summary: 'A little texture at the wrist.',
+    description:
+      'A woven chain with a round clasp, made to sit neatly at the wrist. Choose your finish and length, then wear it alone or alongside your everyday watch.',
+    colours: [
+      { name: 'Gold', image: '/images/woven-bracelet.webp' },
+      { name: 'Silver', image: '/images/woven-bracelet-silver.webp' },
+    ],
+    options: [
+      {
+        name: 'Length',
+        values: ['17 cm', { label: '19 cm', extra: 900 }, { label: '21 cm', extra: 1800 }],
+      },
+    ],
+    details: ['Woven chain', 'Round clasp', 'Gold-tone and silver-tone finishes'],
+  },
+  {
+    number: 24,
+    name: 'The woven sun hat',
+    slug: 'woven-sun-hat',
+    category: 'Accessories',
+    audience: 'women',
+    price: 19500,
+    summary: 'A woven finish, a simple dark band.',
+    description:
+      'A softly shaped woven hat with an upturned brim and a dark ribbon. An easy companion for open-air lunches, market mornings and weekends away.',
+    colours: [{ name: 'Natural', image: '/images/woven-sun-hat.webp' }],
+    options: [{ name: 'Size', values: ['S/M', 'M/L'] }],
+    details: ['Woven texture', 'Dark ribbon band', 'Upturned brim'],
+  },
+];
+
+function makeProduct(style: FixtureStyle): Product {
+  let combinations: { attributes: Record<string, string>; extra: number }[] = [
+    { attributes: {}, extra: 0 },
+  ];
+  for (const option of style.options) {
+    combinations = combinations.flatMap((combination) =>
+      option.values.map((value) => ({
+        attributes: {
+          ...combination.attributes,
+          [option.name]: typeof value === 'string' ? value : value.label,
+        },
+        extra: combination.extra + (typeof value === 'string' ? 0 : value.extra),
+      })),
+    );
+  }
+  return {
+    id: `20000000-0000-4000-8000-${String(style.number).padStart(12, '0')}`,
+    name: style.name,
+    slug: style.slug,
+    category: style.category,
+    audience: style.audience,
+    price: style.price * 100,
+    compare_at: null,
+    short_description: style.summary,
+    description: style.description,
+    images: style.colours.map((colour) => colour.image),
+    alt: `${style.name} in ${style.colours[0].name}; product photograph`,
+    status: 'active',
+    fixture: true,
+    featured: false,
+    tags: ['new-in', 'everyday', 'the-everyday-edit'],
+    created_at: '2026-10-03T00:00:00Z',
+    details: style.details,
+    care: 'Follow the product care label.',
+    variants: style.colours.flatMap((colour, colourIndex) =>
+      combinations.map((combination, index) => {
+        const attributes: Record<string, string> = {
+          Colour: colour.name,
+          ...combination.attributes,
+        };
+        const soldOut = style.unavailable?.some((match) =>
+          Object.entries(match).every(([key, value]) => attributes[key] === value),
+        );
+        return {
+          id: `32000000-0000-4000-8000-${String(style.number * 1000 + colourIndex * 100 + index + 1).padStart(12, '0')}`,
+          sku: `DEV-ORE-${style.number}-${colourIndex + 1}-${index + 1}`,
+          attributes,
+          price: combination.extra ? (style.price + combination.extra) * 100 : null,
+          stock: soldOut ? 0 : 4 + (index % 5),
+          image: colour.image,
+        };
+      }),
+    ),
+  };
+}
+
+export const expandedProducts = styles.map(makeProduct);

@@ -18,6 +18,7 @@ const schema = z.object({
         expectedStock: z.number().int().nonnegative().optional(),
         price: z.number().int().nonnegative().max(1000000000).nullable(),
         active: z.boolean(),
+        image: z.string().max(2048).nullable().optional(),
       }),
     )
     .max(200),
@@ -41,7 +42,9 @@ export async function POST(request: Request) {
           ? 'Stock or product details changed while you were editing. Reload before saving.'
           : error.message.includes('publish')
             ? 'Add a photograph and an active variant before publishing.'
-            : 'Check for duplicate SKU, slug or variant options and try again.',
+            : error.message.includes('variant_image_product')
+              ? 'Choose a photograph uploaded to this product. Reload if it was removed.'
+              : 'Check for duplicate SKU, slug or variant options and try again.',
         409,
       );
     return Response.json({ id: data });
