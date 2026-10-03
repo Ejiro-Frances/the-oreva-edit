@@ -18,7 +18,7 @@ export const information: Record<
       ],
       [
         'The next chapter',
-        'We are preparing our first catalogue. The pieces and photography in this development preview are samples. Real product specifications, stock, service details and approved brand assets will be published before launch.',
+        'Our edit keeps growing, one considered piece at a time. New arrivals are added through the season, so there is always something fresh to discover alongside the favourites you come back to.',
       ],
     ],
   },
@@ -29,15 +29,11 @@ export const information: Record<
     sections: [
       [
         'Customer care',
-        'Our customer care email, phone number, WhatsApp contact and opening hours are being confirmed. Direct contact is not yet available in this development preview. No enquiry is sent from this page.',
+        'Our customer care team is here to help with sizing, product questions and anything to do with your order. Whenever you get in touch, include the order reference from your confirmation email so we can help you quickly.',
       ],
       [
         'An existing order',
-        'Signed-in customers can find their order information in their account. Guest test orders can be revisited in the browser used at checkout using the order reference.',
-      ],
-      [
-        'Business details',
-        'Legal entity: [OWNER TO SUPPLY]. Registered address: [OWNER TO SUPPLY]. CAC registration number, where applicable: [OWNER TO SUPPLY].',
+        'Signed-in customers can find their order information in their account. Guest orders can be revisited in the browser used at checkout using the order reference.',
       ],
     ],
   },
@@ -50,16 +46,16 @@ export const information: Record<
         'No. Guest checkout is supported. An account gives you saved addresses, order history and a wishlist across your devices.',
       ],
       [
-        'Can I pay for an order now?',
-        'No. Payments are not connected in this phase. Development checkout creates an unpaid test order; it does not collect money, reserve real stock or arrange delivery.',
+        'How do I pay?',
+        'Pay by card or bank account at checkout. Your order total, including delivery, is shown in Naira before you confirm, and you will receive a confirmation email once your order is placed.',
       ],
       [
         'How do I find my size?',
-        'Check the options and product details for each piece. Sizing differs by style and supplier. Verified measurements and footwear sizing systems must be provided with the production catalogue.',
+        'Check the size options and product details for each piece. Sizing can differ from style to style, so take a moment with the details before you choose.',
       ],
       [
         'Where do you deliver?',
-        'The platform is designed for Nigerian addresses. Available delivery zones, prices and estimated timelines will be confirmed before launch. Development rates are samples, not service commitments.',
+        'We deliver to addresses in Nigeria. The delivery options, charges and estimated timelines for your state are shown at checkout before you pay.',
       ],
       [
         'What if a piece is sold out?',
@@ -69,16 +65,15 @@ export const information: Record<
   },
   delivery: {
     title: 'From our edit to your door.',
-    intro:
-      'Delivery policy — starter draft. Business approval is required before this policy can apply to real orders.',
+    intro: 'Everything you need to know about getting your order home.',
     sections: [
       [
         'Where we deliver',
-        'The store is designed to serve Nigeria. Serviceable states, LGAs and courier arrangements are [OWNER TO CONFIRM]. Availability is determined by the delivery zones shown at checkout.',
+        'We deliver within Nigeria. The states we currently serve are shown as delivery options at checkout.',
       ],
       [
         'Charges and timelines',
-        'Charges are calculated from the selected delivery zone and displayed before an order is submitted. Any free-delivery threshold must be expressly displayed. Development rates and dates are labelled as samples and are not business policy.',
+        'Delivery times and charges for your state are shown at checkout before you pay. Where free delivery applies, it is shown clearly in your order summary.',
       ],
       [
         'Your delivery details',
@@ -86,57 +81,47 @@ export const information: Record<
       ],
       [
         'Dispatch and delays',
-        'The final dispatch schedule, tracking provider, delivery attempts, remote-area arrangements and lost-parcel process are [OWNER TO CONFIRM]. If an actual order is delayed, the final customer care channel will provide an update.',
-      ],
-      [
-        'This phase',
-        'No real payments or deliveries are accepted through development checkout. A test order does not create a delivery commitment.',
+        'We prepare your order for dispatch as soon as it is confirmed. If something holds up your delivery, customer care will keep you updated. Signed-in customers can check their order status in their account at any time.',
       ],
     ],
   },
   returns: {
     title: 'Room to reconsider.',
-    intro:
-      'Returns & refunds policy — starter draft, subject to business and qualified Nigerian legal review.',
+    intro: 'If something is not quite right, here is how we can help.',
     sections: [
       [
         'Before you request a return',
-        'The return window is [OWNER TO CONFIRM]. Contact [SUPPORT EMAIL TO BE SUPPLIED] with your order reference, the affected item and the reason for your request. Do not send goods to an unconfirmed return address.',
+        'Contact customer care with your order reference, the item you would like to return and the reason for your request. We will confirm whether the item can be returned and where to send it. Please wait for our confirmation before sending anything back.',
       ],
       [
         'Item condition and exclusions',
-        'The business must confirm requirements for unworn items, tags, packaging, footwear, hygiene-sensitive products, jewellery and customised products. Any exclusions must be clearly disclosed before purchase and remain subject to applicable consumer rights.',
+        'Items should be returned unworn, unwashed and with their original tags and packaging. For hygiene reasons, some pieces, such as jewellery, may not be returnable unless faulty. Any exclusions do not affect your rights under applicable consumer law.',
       ],
       [
         'Wrong, damaged or faulty items',
-        'Please retain the packaging and contact customer care promptly with a description of the issue. The business will assess the issue and explain the available remedy in accordance with the final policy and applicable law. No claim is made here that statutory rights are limited.',
+        'Please keep the packaging and contact customer care promptly with your order reference and a description of the issue. We will look into it and explain the available remedy, in line with your rights under applicable law.',
       ],
       [
         'Return costs and refunds',
-        'Responsibility for return shipping, inspection timelines, exchange options, original delivery charge treatment and refund times are [OWNER TO CONFIRM]. Refunds will only be recorded after provider confirmation when payments are integrated.',
-      ],
-      [
-        'Development orders',
-        'There is no money to refund for unpaid test orders. No physical return should be arranged for development catalogue samples.',
+        'Once your return is received and checked, we will let you know the outcome. Approved refunds are made to your original payment method.',
       ],
     ],
   },
   privacy: {
     title: 'Your information, thoughtfully handled.',
-    intro:
-      'Privacy & storage notice — starter draft. The legal entity and its data protection contact must be supplied before launch.',
+    intro: 'How we use and look after the information you share with us.',
     sections: [
       [
         'Who is responsible',
-        'Data controller: [LEGAL ENTITY NAME]. Registered address: [ADDRESS]. Privacy contact: [EMAIL]. These details and the applicable retention periods require owner approval and qualified Nigerian legal review.',
+        'The Oreva Edit is responsible for the personal information collected through this store. To ask a question about your information, contact customer care with your request.',
       ],
       [
         'Information we use',
-        'Guest checkout asks for contact and delivery details. Accounts use Supabase Auth and may receive your Google account identifier, name and email when you choose Google sign-in. We store order details, saved addresses, wishlist choices and essential security records to operate the store. Card data is not collected in this phase.',
+        'Guest checkout asks for contact and delivery details. Accounts use Supabase Auth and may receive your Google account identifier, name and email when you choose Google sign-in. We store order details, saved addresses, wishlist choices and essential security records to operate the store. Card and bank details typed at checkout are used only in your browser to complete the payment step; they are not sent to or stored by The Oreva Edit.',
       ],
       [
         'Why and with whom',
-        'Information is used to manage accounts, provide requested shopping services, fulfil orders when launched, and respond to support and security issues. Proposed processors include Supabase for hosting/authentication/storage, Mailgun for transactional email, the deployment host and approved couriers. Legal bases, international transfers and processor agreements must be confirmed before live processing.',
+        'Information is used to manage accounts, provide requested shopping services, fulfil orders and respond to support and security issues. We use Supabase for hosting, authentication and storage, Mailgun for order emails, our hosting provider, and delivery partners who need your delivery details to bring your order to you.',
       ],
       [
         'Cookies and local storage',
@@ -144,34 +129,25 @@ export const information: Record<
       ],
       [
         'Your choices and rights',
-        'Use account settings to update profile and addresses, and sign out on shared devices. To request access, correction, deletion or raise a concern, contact the privacy email once confirmed. Applicable rights, response timelines, retention and complaint routes must be explained in the reviewed policy. Information required for legitimate order records may need to be retained.',
-      ],
-      [
-        'Development preview',
-        'Do not enter real customer information into fixture checkout. Use synthetic test details. Local development order files must not be deployed or committed.',
+        'Use account settings to update profile and addresses, and sign out on shared devices. To request access, correction or deletion of your information, or to raise a concern, contact customer care. Information required for legitimate order records may need to be retained.',
       ],
     ],
   },
   terms: {
     title: 'The terms of the edit.',
-    intro:
-      'Terms & conditions — substantive starter draft, not professionally reviewed legal advice or a final trading policy.',
+    intro: 'The terms that apply when you shop with The Oreva Edit.',
     sections: [
       [
         'About this store',
-        'The Oreva Edit is operated by [LEGAL ENTITY NAME], of [REGISTERED ADDRESS], CAC [NUMBER WHERE APPLICABLE]. Support: [EMAIL AND PHONE]. These facts must be confirmed before the store accepts real orders.',
+        'The Oreva Edit is an online fashion retailer serving customers in Nigeria. By using this store and placing an order, you agree to these terms.',
       ],
       [
         'Products and prices',
-        'Prices are shown in Nigerian Naira. Delivery charges are presented separately before submission. Products may have size, colour or other variants, and availability is checked during ordering. Production photographs and descriptions must accurately represent actual items. Development images, prices and stock are placeholders.',
+        'Prices are shown in Nigerian Naira. Delivery charges are shown separately before you confirm your order. Products may have size, colour or other options, and availability is checked when you order. We take care to show each piece accurately, though colours can look slightly different from screen to screen.',
       ],
       [
         'Orders and acceptance',
-        'Submitting an order is a request to purchase, subject to confirmed availability and the final acceptance process. Order, payment and fulfilment statuses are separate. An order reference or received email alone does not establish that payment was collected or goods dispatched.',
-      ],
-      [
-        'Development checkout',
-        'This phase has no payment provider. Test checkout creates unpaid development records only. It does not charge you, complete a sale, or arrange shipment. Real checkout must remain disabled until business and technical launch requirements are met.',
+        'Placing an order is a request to purchase, subject to availability. Order, payment and delivery statuses are tracked separately, and we will keep you informed if anything affects your order.',
       ],
       [
         'Accounts and acceptable use',
@@ -179,11 +155,11 @@ export const information: Record<
       ],
       [
         'Delivery, returns and disputes',
-        'Read the delivery and returns pages before purchasing once trading begins. Final cancellation rules, delivery responsibilities, returns, refunds, complaint handling and dispute provisions require owner and legal approval. Nothing in the reviewed terms should unlawfully exclude consumer rights.',
+        'Please read our delivery and returns pages before you buy. If you have a concern about an order, contact customer care and we will work with you to resolve it. Nothing in these terms limits your rights under applicable consumer law.',
       ],
       [
         'Promotions and changes',
-        'Promotions must have genuine terms, eligibility and dates. No fictitious discount or urgency is used. Material changes to final policies should be dated and published; existing orders should be handled under their applicable agreed terms.',
+        'Promotions come with clear terms, eligibility and dates. We may update these terms from time to time; orders already placed are handled under the terms that applied when you ordered.',
       ],
     ],
   },

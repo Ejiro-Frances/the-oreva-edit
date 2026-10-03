@@ -5,6 +5,7 @@ import { notFound } from 'next/navigation';
 import { getProduct, getProducts } from '@/features/catalogue/repository';
 import { ProductGallery } from '@/features/catalogue/product-gallery';
 import { ProductOptions } from '@/features/catalogue/product-options';
+import { ProductSelectionProvider } from '@/features/catalogue/product-selection';
 import { ProductCard } from '@/features/catalogue/product-card';
 import { siteUrl } from '@/lib/config';
 export async function generateMetadata({ params }: { params: Promise<{ slug: string }> }) {
@@ -77,51 +78,47 @@ export default async function Page({ params }: { params: Promise<{ slug: string 
         <span>/</span>
         <span>{p.name}</span>
       </div>
-      <div className="product-detail">
-        <ProductGallery images={p.images} alt={p.alt} />
-        <div className="product-info">
-          <span className="eyebrow">{p.category} / THE OREVA EDIT</span>
-          <h1>{p.name}</h1>
-          <ProductOptions product={p} />
-          {p.fixture && (
-            <p className="fixture-notice">
-              Development sample · Photograph, specification and price are placeholders. Not
-              available for real purchase.
-            </p>
-          )}
-          <details className="disclosure" open>
-            <summary>The story</summary>
-            <p>{p.description}</p>
-          </details>
-          <details className="disclosure">
-            <summary>Details & care</summary>
-            <ul>
-              {p.details.map((d) => (
-                <li key={d}>{d}</li>
-              ))}
-            </ul>
-            <p>{p.care}</p>
-          </details>
-          <details className="disclosure">
-            <summary>Delivery & returns</summary>
-            <p>
-              Delivery availability and charges depend on your address.{' '}
-              <Link href="/delivery" className="text-link">
-                Read delivery information
-              </Link>
-            </p>
-            <p>
-              <Link href="/returns" className="text-link">
-                Read returns information
-              </Link>
-            </p>
-          </details>
-          <details className="disclosure">
-            <summary>Reviews</summary>
-            <Reviews productId={p.id} />
-          </details>
+      <ProductSelectionProvider product={p} key={p.id}>
+        <div className="product-detail">
+          <ProductGallery />
+          <div className="product-info">
+            <span className="eyebrow">{p.category} / THE OREVA EDIT</span>
+            <h1>{p.name}</h1>
+            <ProductOptions />
+            <details className="disclosure" open>
+              <summary>The story</summary>
+              <p>{p.description}</p>
+            </details>
+            <details className="disclosure">
+              <summary>Details & care</summary>
+              <ul>
+                {p.details.map((d) => (
+                  <li key={d}>{d}</li>
+                ))}
+              </ul>
+              <p>{p.care}</p>
+            </details>
+            <details className="disclosure">
+              <summary>Delivery & returns</summary>
+              <p>
+                Delivery availability and charges depend on your address.{' '}
+                <Link href="/delivery" className="text-link">
+                  Read delivery information
+                </Link>
+              </p>
+              <p>
+                <Link href="/returns" className="text-link">
+                  Read returns information
+                </Link>
+              </p>
+            </details>
+            <details className="disclosure">
+              <summary>Reviews</summary>
+              <Reviews productId={p.id} />
+            </details>
+          </div>
         </div>
-      </div>
+      </ProductSelectionProvider>
       {related.length > 0 && (
         <section style={{ paddingBottom: 60 }}>
           <div className="section-heading">

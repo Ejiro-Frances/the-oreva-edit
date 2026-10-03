@@ -2,16 +2,23 @@
 import { priceRange } from './price';
 import { useState } from 'react';
 import { Share2, ShoppingBag } from 'lucide-react';
-import type { Product } from './types';
+import { VariantPicker } from './variant-picker';
+import { useProductSelection } from './product-selection';
 import { useShopping } from '@/features/cart/provider';
 import { Quantity } from '@/components/ui/quantity';
 import { WishlistButton } from '@/features/wishlist/button';
 import { Dialog } from '@/components/ui/dialog';
 import { money } from '@/lib/money';
-export function ProductOptions({ product }: { product: Product }) {
+export function ProductOptions() {
   const { add, ready, notify } = useShopping();
-  const [selected, setSelected] = useState<Record<string, string>>({});
-  const [quantity, setQuantity] = useState(1);
+  const {
+    product,
+    options: selected,
+    quantity,
+    choose: select,
+    reset,
+    setQuantity,
+  } = useProductSelection();
   const [error, setError] = useState('');
   const [guide, setGuide] = useState(false);
   const keys = [...new Set(product.variants.flatMap((v) => Object.keys(v.attributes)))];
@@ -20,8 +27,7 @@ export function ProductOptions({ product }: { product: Product }) {
   const shownPrice = variant ? (variant.price ?? product.price) : range.min;
   const soldOut = product.variants.every((v) => v.stock < 1);
   function choose(key: string, value: string) {
-    setSelected((current) => ({ ...current, [key]: value }));
-    setQuantity(1);
+    select(key, value);
     setError('');
   }
   return (
@@ -34,66 +40,49 @@ export function ProductOptions({ product }: { product: Product }) {
         )}
       </p>
       <p className="product-description">{product.short_description}</p>
-      {keys.map((key) => (
-        <fieldset className="variant-group" key={key}>
-          <legend>
-            {key}
-            {selected[key] && ` — ${selected[key]}`}
-          </legend>
-          <div className="variant-options">
-            {[...new Set(product.variants.map((v) => v.attributes[key]))].map((value) => {
-              const available = product.variants.some(
-                (v) =>
-                  v.attributes[key] === value &&
-                  v.stock > 0 &&
-                  keys
-                    .filter((k) => k !== key && selected[k])
-                    .every((k) => v.attributes[k] === selected[k]),
-              );
-              return (
-                <button
-                  type="button"
-                  key={value}
-                  disabled={!available}
-                  aria-label={`${key}: ${value}${available ? '' : ' (sold out)'}`}
-                  aria-pressed={selected[key] === value}
-                  onClick={() => choose(key, value)}
-                >
-                  {value}
-                </button>
-              );
-            })}
-          </div>
-        </fieldset>
-      ))}
-      {Object.keys(selected).length > 0 && (
-        <button
-          className="small-button"
-          type="button"
-          onClick={() => {
-            setSelected({});
-            setQuantity(1);
-            setError('');
-          }}
-        >
-          Clear choices
-        </button>
+      <VariantPicker product={product} selected={selected} onChoose={choose} />
+      {variant && (
+        <p className="variant-availability" role="status">
+          {variant.stock > 0
+            ? `${Object.values(variant.attributes).join(' / ')} — available`
+            : 'This option is currently sold out.'}
+        </p>
       )}
-      <button
-        className="text-link"
-        style={{ background: 'none', borderWidth: '0 0 1px' }}
-        onClick={() => setGuide(true)}
-      >
-        A note on sizing
-      </button>
+      <div className="option-links">
+        {Object.keys(selected).length > 0 && (
+          <button
+            className="small-button"
+            type="button"
+            onClick={() => {
+              reset();
+              setError('');
+            }}
+          >
+            Clear choices
+          </button>
+        )}
+        <button
+          className="text-link"
+          type="button"
+          style={{ background: 'none', borderWidth: '0 0 1px' }}
+          onClick={() => setGuide(true)}
+        >
+          A note on sizing
+        </button>
+      </div>
       <div className="product-actions">
         <Quantity value={quantity} max={variant?.stock || 1} onChange={setQuantity} />
         <button
-          disabled={!ready || soldOut}
+          disabled={!ready || soldOut || (variant !== undefined && variant.stock < 1)}
           className="button"
           onClick={() => {
             if (!variant) {
-              setError('Choose your colour and size before adding to your bag.');
+              const missing = keys.filter((key) => !selected[key]).map((key) => key.toLowerCase());
+              setError(
+                missing.length
+                  ? `Choose your ${missing.join(' and ')} before adding to your bag.`
+                  : 'This combination is unavailable. Choose another option.',
+              );
               return;
             }
             if (!add(variant.id, quantity, variant.stock))
@@ -131,13 +120,12 @@ export function ProductOptions({ product }: { product: Product }) {
           catalogue options.
         </p>
         <p className="fixture-notice">
-          {product.fixture
-            ? 'Development catalogue: verified garment measurements and size conversions have not been supplied. These labels are not a measurement guarantee.'
-            : 'Please check the product details for measurements. If no measurements are listed, contact us before ordering.'}
+          Please check the product details for measurements. If no measurements are listed, contact
+          us before ordering.
         </p>
         <p className="caption">
-          Footwear sizing systems must be confirmed on the individual product; a number alone does
-          not imply UK, US or EU sizing.
+          Footwear sizes are listed on each product; a number alone does not imply UK, US or EU
+          sizing.
         </p>
       </Dialog>
     </>

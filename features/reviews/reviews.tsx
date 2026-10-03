@@ -3,13 +3,7 @@ import { publicClient, currentUser } from '@/lib/supabase/server';
 import { isFixture } from '@/lib/config';
 import { ReviewForm } from './review-form';
 export async function Reviews({ productId }: { productId: string }) {
-  if (isFixture())
-    return (
-      <p>
-        No published reviews for this development sample. Customer reviews open when accounts and
-        the catalogue are connected.
-      </p>
-    );
+  if (isFixture()) return <p>No reviews yet.</p>;
   const [{ data, error }, user] = await Promise.all([
     publicClient()
       .from('published_reviews')

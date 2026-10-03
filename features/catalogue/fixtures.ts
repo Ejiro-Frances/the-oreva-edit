@@ -1,4 +1,5 @@
 import type { Category, Product, DeliveryZone } from './types';
+import { expandedProducts } from './fixture-expansion.ts';
 
 export const categories: Category[] = [
   'Dresses',
@@ -11,6 +12,8 @@ export const categories: Category[] = [
   'Jewellery',
   'Accessories',
   'Kids clothing',
+  'Skirts',
+  'Shorts',
 ].map((name, i) => ({
   id: `10000000-0000-4000-8000-${String(i + 1).padStart(12, '0')}`,
   name,
@@ -50,7 +53,7 @@ const catalogue = [
     'Gold',
     ['One size'],
   ],
-  ['The everyday carry', 'everyday-carry', 'Bags', 'women', 32000, 'bag', 'Cocoa', ['One size']],
+  ['The everyday carry', 'everyday-carry', 'Bags', 'women', 32000, 'bag', 'Ivory', ['One size']],
   [
     'The after-hours set',
     'after-hours-set',
@@ -118,7 +121,7 @@ const catalogue = [
     'women',
     24500,
     'bag',
-    'Cocoa',
+    'Ivory',
     ['One size'],
   ],
   [
@@ -132,42 +135,65 @@ const catalogue = [
     ['0–3 months', '3–6 months', '6–12 months'],
   ],
 ] as const;
-export const products: Product[] = catalogue.map((p, i) => ({
-  id: `20000000-0000-4000-8000-${String(i + 1).padStart(12, '0')}`,
-  name: p[0],
-  slug: p[1],
-  category: p[2],
-  audience: p[3],
-  price: p[4] * 100,
-  compare_at: null,
-  images: [`/images/${p[5]}.jpg`],
-  alt: `Development style photograph for ${p[0].toLowerCase()}`,
-  short_description: 'An easy addition to your everyday rotation.',
-  description:
-    'A considered silhouette with room to make it your own. Pair with pieces you already love, for slow weekends, busy mornings and everything in between. This is a development catalogue item; materials and measurements require owner approval.',
-  status: 'active',
-  tags: ['new-in', 'everyday', ...(i < 6 ? ['the-everyday-edit'] : [])],
-  featured: i < 4,
-  fixture: true,
-  details: [
-    'Development sample — not available for real purchase',
-    'Final fabric composition and fit to be confirmed',
-    'See size options for this individual style',
+const additionalColours: Record<string, { name: string; image: string }[]> = {
+  'sculptural-drop-earrings': [{ name: 'Silver', image: '/images/earrings-silver.webp' }],
+  'everyday-linen-shirt': [
+    { name: 'Sage', image: '/images/shirt-sage.webp' },
+    { name: 'Dusty blue', image: '/images/shirt-dusty-blue.webp' },
   ],
-  care: 'Follow the garment care label. Product-specific care instructions will be confirmed with the real catalogue.',
-  created_at: `2026-10-${String(Math.max(1, 2 - Math.floor(i / 6))).padStart(2, '0')}T00:00:00Z`,
-  variants: p[7].map((size, j) => ({
-    id: `30000000-0000-4000-8000-${String(i * 10 + j + 1).padStart(12, '0')}`,
-    sku: `DEV-ORE-${i + 1}-${j + 1}`,
-    attributes: { Colour: p[6], Size: size },
-    price: null,
-    stock: i === 0 && j === 3 ? 0 : 7 + j,
+  'everyday-carry': [
+    { name: 'Cocoa', image: '/images/bag-cocoa.webp' },
+    { name: 'Oxblood', image: '/images/bag-oxblood.webp' },
+  ],
+};
+export const products: Product[] = [
+  ...catalogue.map((p, i) => ({
+    id: `20000000-0000-4000-8000-${String(i + 1).padStart(12, '0')}`,
+    name: p[0],
+    slug: p[1],
+    category: p[2],
+    audience: p[3],
+    price: p[4] * 100,
+    compare_at: null,
+    images: [`/images/${p[5]}.jpg`, ...(additionalColours[p[1]] || []).map((c) => c.image)],
+    alt: `Style photograph for ${p[0].toLowerCase()}`,
+    short_description: 'An easy addition to your everyday rotation.',
+    description:
+      'A considered silhouette with room to make it your own. Pair with pieces you already love, for slow weekends, busy mornings and everything in between.',
+    status: 'active' as const,
+    tags: ['new-in', 'everyday', ...(i < 6 ? ['the-everyday-edit'] : [])],
+    featured: i < 4,
+    fixture: true,
+    details: ['Easy everyday fit', 'See size options for this individual style'],
+    care: 'Follow the garment care label.',
+    created_at: `2026-10-${String(Math.max(1, 2 - Math.floor(i / 6))).padStart(2, '0')}T00:00:00Z`,
+    variants: [
+      ...p[7].map((size, j) => ({
+        id: `30000000-0000-4000-8000-${String(i * 10 + j + 1).padStart(12, '0')}`,
+        sku: `DEV-ORE-${i + 1}-${j + 1}`,
+        attributes: { Colour: p[6], Size: size },
+        price: null,
+        image: `/images/${p[5]}.jpg`,
+        stock: i === 0 && j === 3 ? 0 : 7 + j,
+      })),
+      ...(additionalColours[p[1]] || []).flatMap((colour, c) =>
+        p[7].map((size, j) => ({
+          id: `31000000-0000-4000-8000-${String(i * 100 + c * 10 + j + 1).padStart(12, '0')}`,
+          sku: `DEV-ORE-${i + 1}-C${c + 1}-${j + 1}`,
+          attributes: { Colour: colour.name, Size: size },
+          price: null,
+          image: colour.image,
+          stock: 5 + j,
+        })),
+      ),
+    ],
   })),
-}));
+  ...expandedProducts,
+];
 export const deliveryZones: DeliveryZone[] = [
   {
     id: '40000000-0000-4000-8000-000000000001',
-    name: 'DEVELOPMENT — Lagos',
+    name: 'Lagos',
     states: ['Lagos'],
     rate: 250000,
     free_threshold: null,
@@ -178,7 +204,7 @@ export const deliveryZones: DeliveryZone[] = [
   },
   {
     id: '40000000-0000-4000-8000-000000000002',
-    name: 'DEVELOPMENT — FCT',
+    name: 'FCT',
     states: ['FCT'],
     rate: 450000,
     free_threshold: null,

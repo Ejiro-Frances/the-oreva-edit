@@ -89,7 +89,7 @@ export default async function Home() {
               <div className="category-image">
                 <Image
                   src={`/images/${c.image}.jpg`}
-                  alt={`${c.name} fashion development editorial`}
+                  alt={`${c.name} fashion editorial`}
                   fill
                   sizes="(max-width: 600px) 90vw, 33vw"
                 />

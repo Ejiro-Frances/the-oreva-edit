@@ -17,9 +17,16 @@ export const addressSchema = z.object({
   landmark: z.string().trim().max(150),
   instructions: z.string().trim().max(500),
 });
+export function localPhone(phone: string) {
+  return phone.trim().replace(/^\+?234(?=[789][01]\d{8}$)/, '0');
+}
 export const checkoutSchema = addressSchema.extend({
   email: z.email('Enter a valid email').max(254),
-  acceptTest: z.literal(true, { error: 'Confirm that this is an unpaid test order' }),
+  phone: z
+    .string()
+    .trim()
+    .regex(/^\d{11}$/, 'Enter an 11-digit phone number using numbers only')
+    .regex(/^0[789][01]\d{8}$/, 'Enter a Nigerian mobile number, e.g. 08012345678'),
 });
 export type CheckoutInput = z.infer<typeof checkoutSchema>;
 export const orderRequestSchema = z.object({

@@ -5,8 +5,14 @@ import Link from 'next/link';
 import type { Product } from './types';
 import { money } from '@/lib/money';
 import { WishlistButton } from '@/features/wishlist/button';
+import { colourKey, initialSelection } from './selection';
 export function ProductCard({ product, eager = false }: { product: Product; eager?: boolean }) {
   const range = priceRange(product);
+  const key = colourKey(product);
+  const colours = key
+    ? new Set(product.variants.map((v) => v.attributes[key]).filter(Boolean))
+    : new Set<string>();
+  const initialColour = key ? initialSelection(product).options[key] : undefined;
   return (
     <article className="product-card">
       <div className="product-photo">
@@ -27,7 +33,13 @@ export function ProductCard({ product, eager = false }: { product: Product; eage
       </div>
       <div className="product-meta">
         <p className="product-category">
-          {product.category} <span>·</span> {product.variants[0]?.attributes.Colour}
+          {product.category}
+          {colours.size > 0 && (
+            <>
+              {' '}
+              <span>·</span> {colours.size > 1 ? `${colours.size} colours` : initialColour}
+            </>
+          )}
         </p>
         <Link href={`/products/${product.slug}`} className="product-name">
           {product.name}
