@@ -4,7 +4,7 @@ export type Variant = {
   attributes: Record<string, string>;
   price: number | null;
   stock: number;
-  image?: string;
+  image?: string | null;
 };
 export type Product = {
   seo_title?: string;
