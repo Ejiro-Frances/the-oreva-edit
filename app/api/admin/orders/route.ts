@@ -1,6 +1,7 @@
 import { z } from 'zod';
 import { requireAdmin } from '@/features/admin/guard';
 import { sameOrigin, readJson, apiError, AppError } from '@/lib/security';
+import { deliverQueuedEmailsSoon } from '@/lib/email/outbox';
 export async function POST(request: Request) {
   try {
     sameOrigin(request);
@@ -24,6 +25,7 @@ export async function POST(request: Request) {
         'This status change is not available. Refresh the order and check its payment status.',
         409,
       );
+    deliverQueuedEmailsSoon();
     return Response.json({ ok: true });
   } catch (error) {
     return apiError(error);
@@ -47,6 +49,7 @@ export async function PATCH(request: Request) {
       p_note: p.data.note,
     });
     if (error) throw new AppError('This action is no longer available. Reload the order.', 409);
+    deliverQueuedEmailsSoon();
     return Response.json({ ok: true });
   } catch (error) {
     return apiError(error);
