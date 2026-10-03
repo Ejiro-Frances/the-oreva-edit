@@ -1,21 +1,22 @@
 import { NextResponse } from 'next/server';
-import { sessionClient } from '@/lib/supabase/server';
-import { sameOrigin, safeRedirect, apiError } from '@/lib/security';
-import { siteUrl } from '@/lib/config';
+import { sameOrigin, apiError } from '@/lib/security';
+import { authConfigured, siteUrl } from '@/lib/config';
+import {
+  GOOGLE_STATE_COOKIE,
+  googleConfigured,
+  googleCookieOptions,
+  startGoogleSignIn,
+} from '@/lib/auth/google';
 export async function POST(request: Request) {
   try {
     sameOrigin(request);
-    const db = await sessionClient();
-    if (!db) return NextResponse.redirect(new URL('/login?error=configuration', siteUrl), 303);
+    if (!authConfigured() || !googleConfigured())
+      return NextResponse.redirect(new URL('/login?error=configuration', siteUrl), 303);
     const form = await request.formData();
-    const next = safeRedirect(String(form.get('next') || ''));
-    const { data, error } = await db.auth.signInWithOAuth({
-      provider: 'google',
-      options: { redirectTo: `${siteUrl}/auth/callback?next=${encodeURIComponent(next)}` },
-    });
-    if (error || !data.url)
-      return NextResponse.redirect(new URL('/login?error=oauth', siteUrl), 303);
-    return NextResponse.redirect(data.url, 303);
+    const { url, cookie } = startGoogleSignIn(String(form.get('next') || ''));
+    const response = NextResponse.redirect(url, 303);
+    response.cookies.set(GOOGLE_STATE_COOKIE, cookie, googleCookieOptions);
+    return response;
   } catch (error) {
     return apiError(error);
   }
