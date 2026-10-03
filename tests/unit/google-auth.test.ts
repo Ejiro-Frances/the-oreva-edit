@@ -1,5 +1,6 @@
 import { createHash } from 'node:crypto';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
+import { siteUrl } from '@/lib/config';
 import {
   googleConfigured,
   startGoogleSignIn,
@@ -8,6 +9,8 @@ import {
   GOOGLE_STATE_COOKIE,
 } from '@/lib/auth/google';
 
+// The redirect URI follows NEXT_PUBLIC_SITE_URL, which differs between local runs and CI.
+const callbackUrl = `${siteUrl}/auth/google`;
 const base64url = (input: Buffer) => input.toString('base64url');
 
 describe('Google sign-in through the store domain', () => {
@@ -31,7 +34,7 @@ describe('Google sign-in through the store domain', () => {
 
     expect(target.origin + target.pathname).toBe('https://accounts.google.com/o/oauth2/v2/auth');
     expect(params.get('client_id')).toBe('client-id.apps.googleusercontent.com');
-    expect(params.get('redirect_uri')).toBe('http://localhost:3000/auth/google');
+    expect(params.get('redirect_uri')).toBe(callbackUrl);
     expect(params.get('response_type')).toBe('code');
     expect(params.get('scope')).toBe('openid email profile');
     expect(params.get('state')).toBe(pending.state);
@@ -80,7 +83,7 @@ describe('Google sign-in through the store domain', () => {
       code: 'auth-code',
       client_id: 'client-id.apps.googleusercontent.com',
       client_secret: 'client-secret',
-      redirect_uri: 'http://localhost:3000/auth/google',
+      redirect_uri: callbackUrl,
       grant_type: 'authorization_code',
       code_verifier: 'verifier-123',
     });
