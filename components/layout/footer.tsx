@@ -1,6 +1,6 @@
 import Link from 'next/link';
 import { ArrowUpRight } from 'lucide-react';
-export function Footer({ fixture }: { fixture: boolean }) {
+export function Footer() {
   return (
     <footer className="site-footer">
       <div className="container footer-top">
@@ -53,11 +53,6 @@ export function Footer({ fixture }: { fixture: boolean }) {
           <span>Nigeria · NGN ₦</span>
         </div>
       </div>
-      {fixture && (
-        <div className="development-note">
-          Development preview · Sample products and photography · No real payments or fulfilment
-        </div>
-      )}
     </footer>
   );
 }
