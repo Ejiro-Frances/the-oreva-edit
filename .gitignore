@@ -48,3 +48,6 @@ artifacts/
 playwright-report/
 test-results/
 !.env.example
+
+# Supabase CLI link metadata
+supabase/.temp

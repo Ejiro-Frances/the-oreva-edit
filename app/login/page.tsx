@@ -2,6 +2,7 @@ import Image from 'next/image';
 import Link from 'next/link';
 import { authConfigured } from '@/lib/config';
 import { safeRedirect } from '@/lib/security';
+import { googleConfigured } from '@/lib/auth/google';
 export const metadata = { title: 'Your account', robots: { index: false, follow: false } };
 export default async function Page({
   searchParams,
@@ -32,7 +33,7 @@ export default async function Page({
             We couldn’t complete sign-in. Please try again.
           </p>
         )}
-        {authConfigured() ? (
+        {authConfigured() && googleConfigured() ? (
           <form action="/auth/login" method="post">
             <input type="hidden" name="next" value={safeRedirect(query.next || null)} />
             <button className="button">Continue with Google</button>
