@@ -1,5 +1,6 @@
 import type { CartLine, Product, DeliveryZone } from '@/features/catalogue/types';
 import { calculateTotals } from '@/lib/money';
+import { variantImage } from '@/features/catalogue/selection';
 export function quoteOrder(
   items: CartLine[],
   products: Product[],
@@ -29,7 +30,7 @@ export function quoteOrder(
       name: product.name,
       sku: variant.sku,
       attributes: variant.attributes,
-      image: product.images[0],
+      image: variantImage(product, variant),
       price: variant.price ?? product.price,
       quantity: item.quantity,
       discount: 0,

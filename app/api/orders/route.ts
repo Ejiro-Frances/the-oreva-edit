@@ -6,6 +6,7 @@ import { isFixture } from '@/lib/config';
 import { currentUser, privilegedClient } from '@/lib/supabase/server';
 import { createFixtureOrder } from '@/features/orders/fixture-store';
 import { rateLimit } from '@/lib/rate-limit';
+import { deliverQueuedEmailsSoon } from '@/lib/email/outbox';
 export async function POST(request: Request) {
   try {
     sameOrigin(request);
@@ -46,6 +47,7 @@ export async function POST(request: Request) {
           409,
         );
       number = data;
+      deliverQueuedEmailsSoon();
     }
     return Response.json({ number }, { status: 201, headers: { 'Cache-Control': 'no-store' } });
   } catch (error) {

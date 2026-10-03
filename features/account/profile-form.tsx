@@ -1,7 +1,15 @@
 'use client';
 import { useState } from 'react';
 import { Field } from '@/components/ui/field';
-export function ProfileForm({ name, phone }: { name: string; phone: string }) {
+export function ProfileForm({
+  name,
+  phone,
+  email,
+}: {
+  name: string;
+  phone: string;
+  email: string;
+}) {
   const [message, setMessage] = useState('');
   const [busy, setBusy] = useState(false);
   return (
@@ -31,6 +39,14 @@ export function ProfileForm({ name, phone }: { name: string; phone: string }) {
         }
       }}
     >
+      {email && (
+        <Field id="email" label="Sign-in email" className="span-2">
+          <input id="email" type="email" value={email} readOnly aria-describedby="email-note" />
+          <p className="caption" id="email-note">
+            Managed by your sign-in provider.
+          </p>
+        </Field>
+      )}
       <Field id="display_name" label="Display name">
         <input name="display_name" id="display_name" defaultValue={name} required maxLength={120} />
       </Field>

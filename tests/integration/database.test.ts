@@ -1,6 +1,7 @@
 import { beforeAll, afterAll, describe, it, expect } from 'vitest';
 import { PGlite } from '@electric-sql/pglite';
 import { readFile, readdir } from 'node:fs/promises';
+import { products } from '@/features/catalogue/fixtures';
 let db: PGlite;
 const customer = '50000000-0000-4000-8000-000000000001',
   other = '50000000-0000-4000-8000-000000000002',
@@ -37,7 +38,7 @@ describe('PostgreSQL schema, transactions and RLS', () => {
   it('allows anonymous active catalogue reads and hides profiles', async () => {
     await db.exec('set role anon');
     try {
-      expect((await db.query('select id from public.catalogue')).rows.length).toBe(12);
+      expect((await db.query('select id from public.catalogue')).rows.length).toBe(products.length);
       await expect(db.query('select id from public.profiles')).rejects.toThrow('permission denied');
     } finally {
       await db.exec('reset role');
@@ -210,11 +211,17 @@ describe('Administrator publishing and moderation', () => {
       (await db.query('select status from public.products where id=$1', [p.id])).rows[0],
     ).toEqual({ status: 'draft' });
   });
-  it('preserves the last photograph of a published piece', async () => {
+  it('allows extra photographs to be removed but preserves the last published photograph', async () => {
     const { rows } = await db.query<{ id: string }>(
-      'select id from public.product_images where product_id=$1 limit 1',
+      'select id from public.product_images where product_id=$1 order by position',
       ['20000000-0000-4000-8000-000000000003'],
     );
+    for (const image of rows.slice(1)) {
+      await asUser(
+        admin,
+        `select public.remove_product_image('20000000-0000-4000-8000-000000000003','${image.id}')`,
+      );
+    }
     await expect(
       asUser(
         admin,
@@ -296,5 +303,132 @@ describe('Database input guards', () => {
         `select public.reorder_images('20000000-0000-4000-8000-000000000003',array['${image.id}']::uuid[])`,
       ),
     ).rejects.toThrow('Image list changed');
+  });
+});
+
+describe('Variant photography', () => {
+  const shirt = '20000000-0000-4000-8000-000000000002';
+  const sage = '31000000-0000-4000-8000-000000000101';
+  it('saves assigned photographs through the admin transaction', async () => {
+    await db.exec('begin');
+    try {
+      const p = (
+        await db.query<{ id: string; updated_at: string }>(
+          'select *,updated_at::text as updated_at from public.products where id=$1',
+          [shirt],
+        )
+      ).rows[0];
+      const v = (
+        await db.query<{ stock: number }>('select * from public.product_variants where id=$1', [
+          sage,
+        ])
+      ).rows[0];
+      const variants = [{ ...v, expectedStock: v.stock, image: '/images/shirt-dusty-blue.webp' }];
+      await asUser(
+        admin,
+        `select public.save_product('${shirt}','${JSON.stringify(p)}','${JSON.stringify(variants)}','${p.updated_at}')`,
+      );
+      expect(
+        (await db.query('select image from public.product_variants where id=$1', [sage])).rows[0],
+      ).toEqual({ image: '/images/shirt-dusty-blue.webp' });
+    } finally {
+      await db.exec('rollback');
+    }
+  });
+  it('rejects foreign photographs and rolls back the whole admin save', async () => {
+    const p = (
+      await db.query<{ updated_at: string }>(
+        'select *,updated_at::text as updated_at from public.products where id=$1',
+        [shirt],
+      )
+    ).rows[0];
+    const v = (
+      await db.query<{ stock: number }>('select * from public.product_variants where id=$1', [sage])
+    ).rows[0];
+    const variants = [{ ...v, expectedStock: v.stock, image: '/images/bag.jpg' }];
+    await expect(
+      asUser(
+        admin,
+        `select public.save_product('${shirt}','${JSON.stringify({ ...p, name: 'Must roll back' })}','${JSON.stringify(variants)}','${p.updated_at}')`,
+      ),
+    ).rejects.toThrow('variant_image_product');
+    expect(
+      (await db.query('select name from public.products where id=$1', [shirt])).rows[0],
+    ).toEqual({ name: 'The everyday linen shirt' });
+  });
+  it('snapshots the chosen colour and retains it after the media is removed', async () => {
+    await db.exec('begin');
+    try {
+      await db.query(
+        `select public.create_test_order('[{"variantId":"${sage}","quantity":1}]','{"acceptTest":true,"state":"Lagos","email":"colours@example.test"}',gen_random_uuid(),repeat('d',64),null)`,
+      );
+      expect(
+        (await db.query('select image from public.order_items where variant_id=$1', [sage]))
+          .rows[0],
+      ).toEqual({ image: '/images/shirt-sage.webp' });
+      const media = (
+        await db.query<{ id: string }>(
+          'select id from public.product_images where product_id=$1 and url=$2',
+          [shirt, '/images/shirt-sage.webp'],
+        )
+      ).rows[0];
+      await asUser(admin, `select public.remove_product_image('${shirt}','${media.id}')`);
+      expect(
+        (await db.query('select image from public.product_variants where id=$1', [sage])).rows[0],
+      ).toEqual({ image: null });
+      expect(
+        (await db.query('select image from public.order_items where variant_id=$1', [sage]))
+          .rows[0],
+      ).toEqual({ image: '/images/shirt-sage.webp' });
+    } finally {
+      await db.exec('rollback');
+    }
+  });
+  it('reapplying fixtures retains adjusted stock and does not duplicate photographs', async () => {
+    await db.exec('begin');
+    try {
+      await db.query('update public.product_variants set stock=2 where id=$1', [sage]);
+      await db.exec(await readFile('supabase/seed.sql', 'utf8'));
+      expect(
+        (await db.query('select stock from public.product_variants where id=$1', [sage])).rows[0],
+      ).toEqual({ stock: 2 });
+      expect(
+        (await db.query('select id from public.product_images where product_id=$1', [shirt])).rows,
+      ).toHaveLength(3);
+    } finally {
+      await db.exec('rollback');
+    }
+  });
+});
+
+describe('Expanded catalogue pricing', () => {
+  it('uses seeded variant price overrides in an authoritative order snapshot', async () => {
+    await db.exec('begin');
+    try {
+      const product = products.find((p) => p.slug === 'daybreak-trousers')!;
+      const variant = product.variants.find(
+        (v) =>
+          v.attributes.Colour === 'Olive' &&
+          v.attributes.Size === 'M' &&
+          v.attributes.Length === 'Long',
+      )!;
+      await db.query(
+        `select public.create_test_order('[{"variantId":"${variant.id}","quantity":1}]','{"acceptTest":true,"state":"Lagos","email":"variants@example.test"}',gen_random_uuid(),repeat('e',64),null)`,
+      );
+      expect(
+        (
+          await db.query(
+            'select price,image,attributes from public.order_items where variant_id=$1',
+            [variant.id],
+          )
+        ).rows[0],
+      ).toEqual({
+        price: 3150000,
+        image: '/images/daybreak-trousers-olive.webp',
+        attributes: { Colour: 'Olive', Size: 'M', Length: 'Long' },
+      });
+    } finally {
+      await db.exec('rollback');
+    }
   });
 });

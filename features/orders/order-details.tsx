@@ -11,7 +11,6 @@ export function OrderDetails({ order }: { order: Order }) {
           Order: {order.status} · Payment: {order.payment_status} · Fulfilment:{' '}
           {order.fulfilment_status}
         </p>
-        {order.test && <p>Test order — no payment was collected and no delivery will be made.</p>}
       </div>
       <div className="data-table-wrap">
         <table className="data-table">

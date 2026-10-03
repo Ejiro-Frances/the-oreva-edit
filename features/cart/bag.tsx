@@ -6,6 +6,7 @@ import type { Product } from '@/features/catalogue/types';
 import { useShopping } from './provider';
 import { Quantity } from '@/components/ui/quantity';
 import { money } from '@/lib/money';
+import { variantImage } from '@/features/catalogue/selection';
 export function Bag({
   products,
   compact = false,
@@ -43,7 +44,12 @@ export function Bag({
           <article className="bag-line" key={l.variantId}>
             {l.product && (
               <Link href={`/products/${l.product.slug}`} onClick={onNavigate}>
-                <Image src={l.product.images[0]} alt={l.product.alt} width={105} height={140} />
+                <Image
+                  src={variantImage(l.product, l.variant)}
+                  alt={`${l.product.name}, ${Object.values(l.variant?.attributes || {}).join(' / ')}`}
+                  width={105}
+                  height={140}
+                />
               </Link>
             )}
             <div className="bag-line-body">
@@ -87,9 +93,6 @@ export function Bag({
             View your bag
           </Link>
         )}
-        <p className="caption">
-          Payment is not connected. Checkout creates unpaid test orders only.
-        </p>
       </div>
     </div>
   );

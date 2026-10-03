@@ -5,16 +5,20 @@ export function Field({
   error,
   children,
   className = '',
+  required = false,
 }: {
   id: string;
   label: string;
   error?: string;
   children: ReactNode;
   className?: string;
+  required?: boolean;
 }) {
   return (
     <div className={`field ${className}`}>
-      <label htmlFor={id}>{label}</label>
+      <label htmlFor={id} className={required ? 'required' : undefined}>
+        {label}
+      </label>
       {children}
       {error && (
         <p className="field-error" id={`${id}-error`} role="alert">
