@@ -10,7 +10,8 @@ export function OrderDetails({ order }: { order: Order }) {
         <p>
           Order: {order.status} · Payment: {order.payment_status} · Fulfilment:{' '}
           {order.fulfilment_status}
-        </p>      </div>
+        </p>{' '}
+      </div>
       <div className="data-table-wrap">
         <table className="data-table">
           <caption className="sr-only">Items in your order</caption>
