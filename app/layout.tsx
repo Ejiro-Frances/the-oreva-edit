@@ -67,7 +67,7 @@ export default async function RootLayout({ children }: { children: React.ReactNo
             featured={settings.featured}
           />
           <main id="main-content">{children}</main>
-          <Footer fixture={isFixture()} />
+          <Footer />
         </ShoppingProvider>
       </body>
     </html>

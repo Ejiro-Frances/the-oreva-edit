@@ -1,4 +1,5 @@
 import Link from 'next/link';
+import { SignOut } from '@/features/account/sign-out';
 import { redirect } from 'next/navigation';
 import { currentUser } from '@/lib/supabase/server';
 export const metadata = { title: 'Your account', robots: { index: false, follow: false } };
@@ -12,9 +13,7 @@ export default async function Layout({ children }: { children: React.ReactNode }
         <Link href="/account/profile">Profile</Link>
         <Link href="/account/addresses">Addresses</Link>
         <Link href="/account/wishlist">Wishlist</Link>
-        <form action="/auth/logout" method="post">
-          <button>Sign out</button>
-        </form>
+        <SignOut />
       </nav>
       <div className="account-content">{children}</div>
     </div>

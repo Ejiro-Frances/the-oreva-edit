@@ -1015,6 +1015,23 @@ button {
 .variant-options button:disabled {
   text-decoration: line-through;
 }
+.variant-colours button {
+  display: inline-flex;
+  align-items: center;
+  gap: 9px;
+  padding: 4px 10px 4px 4px;
+  text-align: left;
+}
+.variant-colours img {
+  width: 54px;
+  height: 68px;
+  object-fit: cover;
+}
+.variant-availability {
+  color: var(--muted);
+  font-size: 12px;
+  margin: 12px 0;
+}
 .product-actions {
   display: grid;
   grid-template-columns: auto 1fr;
@@ -1050,7 +1067,7 @@ button {
 .product-save-row .button {
   min-height: 40px;
   border: 0;
-  padding-left: 0;
+  padding-left: 14px;
   gap: 10px;
   font-weight: 400;
 }
@@ -1209,6 +1226,127 @@ button {
 .field input[aria-invalid='true'] {
   border-color: var(--destructive);
 }
+.required-mark,
+label.required::after {
+  color: var(--destructive);
+}
+/* Decorative: inputs carry aria-required, so the mark has empty alt text. */
+label.required::after {
+  content: ' *';
+  content: ' *' / '';
+}
+.pay {
+  display: flex;
+  flex-direction: column;
+  gap: 18px;
+}
+.pay fieldset {
+  border: 0;
+  padding: 0;
+  margin: 0;
+  min-width: 0;
+}
+.pay-summary {
+  display: flex;
+  justify-content: space-between;
+  gap: 12px;
+  flex-wrap: wrap;
+  padding: 14px 16px;
+  background: var(--surface);
+  font-size: 12px;
+  color: var(--muted);
+  overflow-wrap: anywhere;
+}
+.pay-summary strong {
+  color: var(--success);
+  font-size: 14px;
+}
+.pay-methods {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 8px;
+}
+.pay-methods legend {
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 1.5px;
+  text-transform: uppercase;
+  color: var(--muted);
+  margin-bottom: 8px;
+}
+.pay-methods label {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 12px 14px;
+  border: 1px solid var(--border);
+  font-size: 13px;
+  cursor: pointer;
+}
+.pay-methods label.active {
+  border-color: var(--success);
+  box-shadow: inset 0 0 0 1px var(--success);
+}
+.pay-methods input {
+  position: absolute;
+  opacity: 0;
+  pointer-events: none;
+}
+.pay-methods label:has(input:focus-visible) {
+  outline: 2px solid var(--focus);
+  outline-offset: 2px;
+}
+.pay-fields {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+.pay-row {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 12px;
+}
+.pay-debit {
+  font-size: 13px;
+  color: var(--muted);
+}
+.pay-debit strong {
+  color: var(--foreground);
+}
+.pay .button {
+  background: var(--success);
+  border-color: var(--success);
+}
+.pay .button:hover {
+  background: #244d39;
+}
+.pay-secure {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  font-size: 11px;
+  color: var(--muted);
+}
+.pay-success {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  text-align: center;
+  gap: 14px;
+}
+.pay-success > svg {
+  color: var(--success);
+}
+.pay-success-amount {
+  font-family: var(--font-display);
+  font-size: 34px;
+}
+.pay-success-note {
+  padding: 12px 16px;
+  background: var(--surface);
+  font-size: 13px;
+}
 .field-error {
   font-size: 11px;
   color: var(--destructive);
@@ -1302,14 +1440,34 @@ button {
   flex-direction: column;
   gap: 5px;
 }
-.account-nav a,
-.account-nav button {
+.account-nav > a,
+.account-nav > button {
   padding: 12px 0;
   border: 0;
   border-bottom: 1px solid var(--border);
   text-align: left;
   background: none;
   font-size: 12px;
+}
+.profile-photo {
+  width: 72px;
+  height: 72px;
+  border-radius: 50%;
+  object-fit: cover;
+  margin-bottom: 25px;
+  background: var(--surface);
+}
+.spinner {
+  width: 1em;
+  height: 1em;
+  margin-right: 8px;
+  vertical-align: -0.125em;
+  animation: spin 0.8s linear infinite;
+}
+@keyframes spin {
+  to {
+    transform: rotate(360deg);
+  }
 }
 .account-content h1 {
   font-size: 42px;
@@ -1396,6 +1554,12 @@ button {
   gap: 10px;
   flex-wrap: wrap;
   margin-top: 20px;
+}
+.option-links {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 28px;
 }
 .small-button {
   border: 1px solid var(--border);
@@ -1992,8 +2156,8 @@ button {
     gap: 12px;
     margin-bottom: 32px;
   }
-  .account-nav a,
-  .account-nav button {
+  .account-nav > a,
+  .account-nav > button {
     font-size: 11px;
     padding: 8px 0;
   }

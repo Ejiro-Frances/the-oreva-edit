@@ -1,7 +1,7 @@
 import { priceRange } from '@/features/catalogue/price';
 import { describe, it, expect } from 'vitest';
 import { money, calculateTotals } from '@/lib/money';
-import { checkoutSchema, cartSchema } from '@/lib/validation';
+import { checkoutSchema, cartSchema, localPhone } from '@/lib/validation';
 import { quoteOrder } from '@/features/checkout/pricing';
 import { products, deliveryZones } from '@/features/catalogue/fixtures';
 import { filterProducts } from '@/features/catalogue/filter';
@@ -19,7 +19,6 @@ const contact = {
   address: '10 Test Street',
   landmark: '',
   instructions: '',
-  acceptTest: true,
 };
 describe('money and order pricing', () => {
   it('formats NGN from integer kobo', () => {
@@ -92,15 +91,23 @@ describe('money and order pricing', () => {
   });
 });
 describe('input validation', () => {
-  it('accepts Nigerian local and international numbers', () => {
+  it('accepts an 11-digit Nigerian mobile number', () => {
     expect(checkoutSchema.safeParse(contact).success).toBe(true);
-    expect(checkoutSchema.safeParse({ ...contact, phone: '+2348012345678' }).success).toBe(true);
+  });
+  it('converts international numbers to the 11-digit local form', () => {
+    expect(localPhone('+2348012345678')).toBe('08012345678');
+    expect(localPhone('2348012345678')).toBe('08012345678');
+    expect(localPhone('08012345678')).toBe('08012345678');
   });
   it.each([
     { email: 'invalid' },
     { phone: '555' },
+    { phone: '0801234567' },
+    { phone: '080123456789' },
+    { phone: '+2348012345678' },
+    { phone: '0801234567a' },
+    { phone: '0801 234 567' },
     { state: 'California' },
-    { acceptTest: false },
     { address: 'x' },
   ])('rejects invalid checkout %o', (change) =>
     expect(checkoutSchema.safeParse({ ...contact, ...change }).success).toBe(false),
@@ -111,14 +118,15 @@ describe('input validation', () => {
     ).toBe(false));
 });
 describe('catalogue and cart', () => {
-  it('searches actual names and categories', () => {
+  it('searches actual names and descriptions', () => {
     expect(filterProducts(products, { q: 'linen' }).map((p) => p.slug)).toEqual([
       'everyday-linen-shirt',
+      'weekend-drawstring-shorts',
     ]);
     expect(filterProducts(products, { q: 'not-a-real-piece' })).toHaveLength(0);
   });
   it('filters available sizes and sorts prices', () => {
-    const result = filterProducts(products, {
+    const result = filterProducts([products[0]], {
       audience: 'women',
       stock: '1',
       size: 'XL',
@@ -153,8 +161,8 @@ describe('fulfilment and transactional email', () => {
       { number: 'ORE-2026-000001', test: true, total: 100, status: 'pending' },
       'https://example.test',
     );
-    expect(mail.subject).toContain('TEST — UNPAID');
-    expect(mail.text).toContain('No payment was collected');
+    expect(mail.subject).not.toContain('TEST');
+    expect(mail.text).toContain('not a payment receipt');
     expect(mail.html).toContain('https://example.test/track-order');
   });
 });

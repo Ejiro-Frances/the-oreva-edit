@@ -15,7 +15,7 @@ export default async function Page({
       <div className="login-art">
         <Image
           src="/images/studio.jpg"
-          alt="The Oreva Edit fashion development editorial"
+          alt="The Oreva Edit fashion editorial"
           fill
           sizes="(max-width: 600px) 100vw, 50vw"
         />
@@ -45,7 +45,7 @@ export default async function Page({
             </button>
             <p className="caption" style={{ marginTop: 15 }}>
               Account access will be available when the store’s secure sign-in is configured. You
-              can still browse and use guest test checkout.
+              can still browse and check out as a guest.
             </p>
           </>
         )}

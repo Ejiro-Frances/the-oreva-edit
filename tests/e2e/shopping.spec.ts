@@ -54,9 +54,7 @@ test('variant selection is required and sold-out sizes are disabled', async ({ p
   await page.goto('/products/sade-midi-dress');
   await expect(page.getByRole('button', { name: 'Size: XL (sold out)' })).toBeDisabled();
   await page.getByRole('button', { name: 'Add to bag', exact: true }).click();
-  await expect(page.getByRole('main').getByRole('alert')).toContainText(
-    'Choose your colour and size',
-  );
+  await expect(page.getByRole('main').getByRole('alert')).toContainText('Choose your size');
 });
 test('bag quantities can be edited and items removed', async ({ page }) => {
   await addDress(page);
@@ -93,13 +91,19 @@ test('checkout validates required contact and delivery details', async ({ page }
     .getByRole('dialog', { name: 'Your shopping bag' })
     .getByRole('link', { name: 'Continue to checkout' })
     .click();
-  await page.getByRole('button', { name: 'Place unpaid test order' }).click();
+  await page.getByLabel('Nigerian mobile number', { exact: true }).fill('0801-234 abc');
+  await expect(page.getByLabel('Nigerian mobile number', { exact: true })).toHaveValue('0801234');
+  await page.getByRole('button', { name: /Continue to payment/ }).click();
   await expect(page.getByText('Enter a valid email', { exact: true })).toBeVisible();
   await expect(
-    page.getByText('Confirm that this is an unpaid test order', { exact: true }),
+    page.getByText('Enter an 11-digit phone number using numbers only', { exact: true }),
   ).toBeVisible();
+  await expect(page.getByRole('dialog', { name: 'Payment' })).toHaveCount(0);
 });
-test('guest test checkout is unpaid and private to the guest', async ({ page, browser }) => {
+test('guest checkout takes a simulated payment and stays private to the guest', async ({
+  page,
+  browser,
+}) => {
   await addDress(page);
   await page
     .getByRole('dialog', { name: 'Your shopping bag' })
@@ -112,11 +116,21 @@ test('guest test checkout is unpaid and private to the guest', async ({ page, br
   await page.getByLabel('State / FCT', { exact: true }).selectOption('Lagos');
   await page.getByLabel('City or town', { exact: true }).fill('Test City');
   await page.getByLabel('Delivery address', { exact: true }).fill('10 Synthetic Test Street');
-  await page
-    .getByRole('checkbox', { name: 'I understand this is an unpaid test order with no delivery.' })
-    .check();
-  await page.getByRole('button', { name: 'Place unpaid test order' }).click();
-  await expect(page.getByRole('heading', { name: 'Your test edit is in.' })).toBeVisible();
+  await page.getByRole('button', { name: /Continue to payment/ }).click();
+  const payment = page.getByRole('dialog', { name: 'Payment' });
+  await payment.getByLabel('Card number').fill('4084 0840 8408 4082');
+  await payment.getByLabel('Expiry').fill('1299');
+  await payment.getByLabel('CVV').fill('408');
+  await payment.getByRole('button', { name: /^Pay / }).click();
+  await expect(payment.getByText('Enter a valid card number')).toBeVisible();
+  await payment.getByLabel('Card number').fill('4084 0840 8408 4081');
+  await payment.getByRole('button', { name: /^Pay / }).click();
+  const success = page.getByRole('dialog', { name: 'Payment successful' });
+  await expect(
+    success.getByText('No money was removed from your account.', { exact: false }),
+  ).toBeVisible();
+  await success.getByRole('button', { name: 'View your order' }).click();
+  await expect(page.getByRole('heading', { name: 'Your edit is in.' })).toBeVisible();
   await expect(page.getByText(/Payment: unpaid/)).toBeVisible();
   const url = page.url();
   const other = await browser.newContext();
@@ -136,7 +150,7 @@ test('unsupported delivery state has actionable feedback', async ({ page }) => {
     .click();
   await page.getByLabel('State / FCT', { exact: true }).selectOption('Kano');
   await expect(page.getByRole('main').getByRole('alert')).toContainText(
-    'Delivery is not configured',
+    'We don’t deliver to this state yet',
   );
 });
 test('account and admin require authentication', async ({ page }) => {

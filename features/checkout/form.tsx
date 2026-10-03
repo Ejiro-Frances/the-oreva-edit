@@ -1,17 +1,19 @@
 'use client';
+import { variantImage } from '@/features/catalogue/selection';
 import { useRef, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import Image from 'next/image';
 import Link from 'next/link';
 import { useForm, useWatch } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
-import { checkoutSchema, type CheckoutInput } from '@/lib/validation';
+import { checkoutSchema, localPhone, type CheckoutInput } from '@/lib/validation';
 import { states } from '@/lib/config';
 import { useShopping } from '@/features/cart/provider';
 import type { Product, DeliveryZone } from '@/features/catalogue/types';
 import { money } from '@/lib/money';
 import { Field } from '@/components/ui/field';
 import { EmptyState } from '@/components/ui/empty-state';
+import { PaymentDialog } from './payment';
 export function CheckoutForm({
   products,
   zones,
@@ -23,13 +25,14 @@ export function CheckoutForm({
   zones: DeliveryZone[];
   enabled: boolean;
   email?: string;
-  addresses?: { id: string; label: string; details: Omit<CheckoutInput, 'email' | 'acceptTest'> }[];
+  addresses?: { id: string; label: string; details: Omit<CheckoutInput, 'email'> }[];
 }) {
   const { lines, clear, ready } = useShopping();
   const router = useRouter();
   const key = useRef<string | null>(null);
   const submitting = useRef(false);
   const [serverError, setServerError] = useState('');
+  const [contact, setContact] = useState<CheckoutInput | null>(null);
   const {
     register,
     handleSubmit,
@@ -66,10 +69,18 @@ export function CheckoutForm({
       ? 0
       : zone.rate
     : 0;
-  async function submit(contact: CheckoutInput) {
-    if (submitting.current) return;
-    submitting.current = true;
+  function submit(details: CheckoutInput) {
     setServerError('');
+    if (!zone) {
+      setServerError('Choose a state we deliver to before paying.');
+      return;
+    }
+    setContact(details);
+  }
+  // Creates the order once the simulated payment step is confirmed.
+  async function createOrder(): Promise<{ number: string } | { error: string }> {
+    if (submitting.current || !contact) return { error: 'Your order is already being placed.' };
+    submitting.current = true;
     key.current ||= crypto.randomUUID();
     try {
       const response = await fetch('/api/orders', {
@@ -78,22 +89,24 @@ export function CheckoutForm({
         body: JSON.stringify({ contact, items: lines, idempotencyKey: key.current }),
       });
       const result = await response.json();
-      if (!response.ok) {
-        setServerError(result.error || 'Your order could not be created.');
-        return;
-      }
-      clear();
-      router.push(`/order-confirmation/${result.number}`);
+      if (!response.ok) return { error: result.error || 'Your order could not be placed.' };
+      return { number: result.number };
     } catch {
-      setServerError(
-        'We couldn’t reach the store. Your details are still here. Try again when you’re connected.',
-      );
+      return {
+        error:
+          'We couldn’t reach the store. Your details are still here. Try again when you’re connected.',
+      };
     } finally {
       submitting.current = false;
     }
   }
+  function finish(number: string) {
+    router.push(`/order-confirmation/${number}`);
+    clear();
+  }
+  const optional = new Set<keyof CheckoutInput>(['lga', 'landmark', 'instructions']);
   const input = (
-    name: Exclude<keyof CheckoutInput, 'acceptTest' | 'state' | 'instructions'>,
+    name: Exclude<keyof CheckoutInput, 'state' | 'instructions'>,
     label: string,
     autoComplete?: string,
     type = 'text',
@@ -105,17 +118,30 @@ export function CheckoutForm({
       label={label}
       error={errors[name]?.message}
       className={full ? 'span-2' : ''}
+      required={!optional.has(name)}
     >
       <input
         id={name}
         type={type}
         autoComplete={autoComplete}
         {...register(name)}
+        {...(name === 'phone' && phoneInput)}
+        aria-required={!optional.has(name)}
         aria-invalid={!!errors[name]}
         aria-describedby={errors[name] ? `${name}-error` : undefined}
       />
     </Field>
   );
+  const phoneField = register('phone');
+  const phoneInput = {
+    inputMode: 'numeric' as const,
+    maxLength: 11,
+    placeholder: '08012345678',
+    onChange: (e: React.ChangeEvent<HTMLInputElement>) => {
+      e.target.value = e.target.value.replace(/\D/g, '').slice(0, 11);
+      return phoneField.onChange(e);
+    },
+  };
   if (!ready) return <p role="status">Preparing your checkout…</p>;
   if (!lines.length)
     return (
@@ -127,15 +153,11 @@ export function CheckoutForm({
   return (
     <div className="checkout-layout">
       <form noValidate onSubmit={handleSubmit(submit)}>
-        <div className="notice-box">
-          <strong>Development checkout · No payment collected</strong>
-          <p>
-            This creates an unpaid test order. Use test details only. Nothing will be charged or
-            delivered.
-          </p>
-        </div>
         <section className="form-section">
           <h2>01 / Your details</h2>
+          <p className="caption" style={{ marginBottom: 15 }}>
+            Fields marked <span className="required-mark">*</span> are required.
+          </p>
           <div className="form-grid">
             {input('email', 'Email address', 'email', 'email', true)}
             {input('phone', 'Nigerian mobile number', 'tel', 'tel', true)}
@@ -158,7 +180,9 @@ export function CheckoutForm({
                   const a = addresses.find((a) => a.id === e.target.value);
                   if (a)
                     Object.entries(a.details).forEach(([k, v]) =>
-                      setValue(k as keyof CheckoutInput, v, { shouldValidate: true }),
+                      setValue(k as keyof CheckoutInput, k === 'phone' ? localPhone(v) : v, {
+                        shouldValidate: true,
+                      }),
                     );
                 }}
               >
@@ -174,10 +198,11 @@ export function CheckoutForm({
           <div className="form-grid">
             {input('firstName', 'First name', 'given-name')}
             {input('lastName', 'Last name', 'family-name')}
-            <Field id="state" label="State / FCT" error={errors.state?.message}>
+            <Field id="state" label="State / FCT" error={errors.state?.message} required>
               <select
                 id="state"
                 {...register('state')}
+                aria-required
                 aria-invalid={!!errors.state}
                 aria-describedby={errors.state ? 'state-error' : undefined}
               >
@@ -202,35 +227,25 @@ export function CheckoutForm({
           </div>
           {selectedState && !zone && (
             <p role="alert" className="field-error">
-              Delivery is not configured for this state yet. Current test zones:{' '}
-              {zones.map((z) => z.states.join(', ')).join('; ')}.
+              We don’t deliver to this state yet. We currently deliver to{' '}
+              {zones
+                .filter((z) => z.active)
+                .map((z) => z.states.join(', '))
+                .join('; ')}
+              .
             </p>
           )}
         </section>
         <section className="form-section">
-          <h2>03 / Test order</h2>
-          <p className="muted">Payment is not connected. This order will be marked unpaid.</p>
-          <label className="checkbox-label">
-            <input
-              type="checkbox"
-              {...register('acceptTest')}
-              aria-describedby={errors.acceptTest ? 'acceptTest-error' : undefined}
-            />
-            I understand this is an unpaid test order with no delivery.
-          </label>
-          {errors.acceptTest && (
-            <p id="acceptTest-error" className="field-error" role="alert">
-              {errors.acceptTest.message}
-            </p>
-          )}
+          <h2>03 / Order</h2>
           <p className="caption">
-            Read our{' '}
-            <Link href="/privacy" className="text-link">
-              privacy notice
-            </Link>{' '}
-            and{' '}
+            By placing your order you agree to our{' '}
             <Link href="/terms" className="text-link">
               terms
+            </Link>{' '}
+            and{' '}
+            <Link href="/privacy" className="text-link">
+              privacy notice
             </Link>
             .
           </p>
@@ -244,18 +259,32 @@ export function CheckoutForm({
             style={{ marginTop: 20 }}
             disabled={isSubmitting || !enabled}
           >
-            {isSubmitting ? 'Creating your test order…' : 'Place unpaid test order'}
+            {isSubmitting
+              ? 'Checking your details…'
+              : `Continue to payment · ${money(subtotal + delivery)}`}
           </button>
           {!enabled && (
-            <p className="field-error">Order creation is disabled for this environment.</p>
+            <p className="field-error">
+              Checkout is temporarily unavailable. Please try again later.
+            </p>
           )}
         </section>
       </form>
+      <PaymentDialog
+        open={!!contact}
+        amount={subtotal + delivery}
+        email={contact?.email ?? ''}
+        onClose={() => setContact(null)}
+        onPay={createOrder}
+        onDone={finish}
+      />
       <aside className="checkout-summary">
         <h2>Your edit.</h2>
         {resolved.map((l) => (
           <div key={l.variantId} className="checkout-summary-line">
-            {l.product && <Image src={l.product.images[0]} alt="" width={60} height={80} />}
+            {l.product && (
+              <Image src={variantImage(l.product, l.variant)} alt="" width={60} height={80} />
+            )}
             <div>
               {l.product?.name || 'Unavailable item'}
               <p>
@@ -270,7 +299,7 @@ export function CheckoutForm({
           <span>{money(subtotal)}</span>
         </div>
         <div className="total-row">
-          <span>Delivery {zone?.fixture ? '(test rate)' : ''}</span>
+          <span>Delivery</span>
           <span>{zone ? money(delivery) : 'Choose a state'}</span>
         </div>
         <div className="total-row">
@@ -278,8 +307,7 @@ export function CheckoutForm({
           <strong>{money(subtotal + delivery)}</strong>
         </div>
         <p className="caption">
-          All prices in NGN. Prices and availability are checked again when you place your test
-          order.
+          All prices in NGN. Prices and availability are confirmed when you place your order.
         </p>
       </aside>
     </div>
