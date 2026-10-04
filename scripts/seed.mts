@@ -12,7 +12,7 @@ const json = (v: unknown) => sql(JSON.stringify(v)) + '::jsonb';
 let out =
   '-- DEVELOPMENT FIXTURES ONLY. Never seed these products or delivery rates in production.\n';
 for (const c of categories)
-  out += `insert into public.categories(id,name,slug,position) values(${sql(c.id)},${sql(c.name)},${sql(c.slug)},${c.position}) on conflict(id) do nothing;\n`;
+  out += `insert into public.categories(id,name,slug,parent_id,position) values(${sql(c.id)},${sql(c.name)},${sql(c.slug)},${sql(c.parent_id)},${c.position}) on conflict(id) do nothing;\n`;
 for (const p of products) {
   const c = categories.find((c) => c.name === p.category)!;
   out += `insert into public.products(id,name,slug,description,short_description,category_id,audience,price,status,fixture,featured,tags,details,care) values(${[p.id, p.name, p.slug, p.description, p.short_description, c.id, p.audience, p.price, p.status, true, p.featured].map(sql).join(',')},array[${p.tags.map(sql).join(',')}],array[${p.details.map(sql).join(',')}],${sql(p.care)}) on conflict(id) do nothing;\n`;
