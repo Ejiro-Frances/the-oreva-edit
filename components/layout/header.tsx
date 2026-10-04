@@ -14,6 +14,7 @@ import { Dialog } from '@/components/ui/dialog';
 import { useShopping } from '@/features/cart/provider';
 import { Bag } from '@/features/cart/bag';
 import type { Category, Product } from '@/features/catalogue/types';
+import { categoriesForProducts, navigationProducts } from '@/features/catalogue/category-tree';
 const nav = [
   ['Women', '/women'],
   ['Men', '/men'],
@@ -120,7 +121,10 @@ export function Header({
               <Link href={href} onClick={() => setMenu(false)}>
                 Shop all {name.toLowerCase()}
               </Link>
-              {categories.slice(0, 6).map((c) => (
+              {categoriesForProducts(
+                categories,
+                navigationProducts(products, categories, href.slice(1)),
+              ).map((c) => (
                 <Link key={c.id} href={`${href}?category=${c.slug}`} onClick={() => setMenu(false)}>
                   {c.name}
                 </Link>

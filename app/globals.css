@@ -1027,6 +1027,26 @@ button {
   height: 68px;
   object-fit: cover;
 }
+.category-shortcuts {
+  display: flex;
+  flex-wrap: wrap;
+  column-gap: 22px;
+  row-gap: 4px;
+  padding-bottom: 20px;
+  border-bottom: 1px solid var(--border);
+}
+.category-shortcuts a {
+  display: inline-flex;
+  align-items: center;
+  min-height: 44px;
+  font-size: 13px;
+  border-bottom: 2px solid transparent;
+}
+.category-shortcuts a[aria-current='page'],
+.category-shortcuts a:hover {
+  color: var(--primary);
+  border-bottom-color: var(--primary);
+}
 .variant-availability {
   color: var(--muted);
   font-size: 12px;

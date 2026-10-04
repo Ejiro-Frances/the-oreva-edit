@@ -12,7 +12,8 @@ const sections: Record<string, { title: string; description: string; base: Catal
   },
   men: {
     title: 'Men',
-    description: 'Easy shapes. Considered details. The pieces you’ll live in.',
+    description:
+      'Shirts, trousers, everyday basics and the finishing details. Build your rotation.',
     base: { audience: 'men' },
   },
   kids: {

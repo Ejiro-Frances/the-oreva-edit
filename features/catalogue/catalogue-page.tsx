@@ -4,6 +4,12 @@ import { filterProducts, type CatalogueFilters } from './filter';
 import { FilterForm, MobileFilters } from './filters';
 import { ProductCard } from './product-card';
 import { EmptyState } from '@/components/ui/empty-state';
+import {
+  categoriesForProducts,
+  categoryBranchSlugs,
+  navigationProducts,
+  productCategorySlug,
+} from './category-tree';
 export async function CataloguePage({
   title,
   description,
@@ -23,28 +29,16 @@ export async function CataloguePage({
     sort: typeof params.sort === 'string' ? params.sort : base.sort,
   };
   let source = all;
-  if (title === 'Accessories')
-    source = all.filter((p) => ['Bags', 'Jewellery', 'Accessories'].includes(p.category));
+  if (title === 'Accessories') source = navigationProducts(all, categories, 'accessories');
   if (title === 'Best sellers') {
     source = await getBestSellers();
     if (!filters.sort) filters.sort = 'best-selling';
   }
+  if (filters.audience) source = filterProducts(source, { audience: filters.audience });
+  const availableCategories = categoriesForProducts(categories, source);
   if (filters.category) {
-    const slugs = new Set([filters.category]);
-    let changed = true;
-    while (changed) {
-      changed = false;
-      for (const c of categories) {
-        const parent = categories.find((p) => p.id === c.parent_id);
-        if (parent && slugs.has(parent.slug) && !slugs.has(c.slug)) {
-          slugs.add(c.slug);
-          changed = true;
-        }
-      }
-    }
-    source = source.filter((p) =>
-      slugs.has(p.category_slug || p.category.toLowerCase().replaceAll(' ', '-')),
-    );
+    const slugs = categoryBranchSlugs(categories, [filters.category]);
+    source = source.filter((p) => slugs.has(productCategorySlug(p)));
   }
   const filtered = filterProducts(source, { ...filters, category: undefined });
   const page = Math.max(1, Number(params.page) || 1);
@@ -59,6 +53,19 @@ export async function CataloguePage({
     search.set('page', String(n));
     return `?${search}`;
   }
+  function categoryLink(slug: string) {
+    const search = new URLSearchParams(
+      Object.entries(params).filter(
+        (entry): entry is [string, string] => typeof entry[1] === 'string',
+      ),
+    );
+    search.delete('page');
+    search.delete('size');
+    search.delete('colour');
+    if (slug) search.set('category', slug);
+    else search.delete('category');
+    return `?${search}`;
+  }
   return (
     <div className="container">
       <div className="breadcrumbs">
@@ -71,6 +78,22 @@ export async function CataloguePage({
         <h1>{filters.q ? `Results for “${filters.q}”` : title}</h1>
         <p>{description}</p>
       </div>
+      {base.audience && (
+        <nav className="category-shortcuts" aria-label={`${title} categories`}>
+          <Link href={categoryLink('')} aria-current={!filters.category ? 'page' : undefined}>
+            All {title.toLowerCase()}
+          </Link>
+          {availableCategories.map((category) => (
+            <Link
+              key={category.id}
+              href={categoryLink(category.slug)}
+              aria-current={filters.category === category.slug ? 'page' : undefined}
+            >
+              {category.name}
+            </Link>
+          ))}
+        </nav>
+      )}
       {title === 'Search' && (
         <form className="search-form">
           <label htmlFor="page-search" className="sr-only">
@@ -86,7 +109,7 @@ export async function CataloguePage({
         </form>
       )}
       <div className="catalogue-toolbar">
-        <MobileFilters categories={categories} products={source} filters={filters} />
+        <MobileFilters categories={availableCategories} products={source} filters={filters} />
         <p>
           {filtered.length} {filtered.length === 1 ? 'piece' : 'pieces'} in this edit
         </p>
@@ -94,7 +117,7 @@ export async function CataloguePage({
       </div>
       <div className="catalogue-layout">
         <aside className="filter-sidebar" aria-label="Catalogue filters">
-          <FilterForm categories={categories} products={source} filters={filters} />
+          <FilterForm categories={availableCategories} products={source} filters={filters} />
         </aside>
         <div>
           {shown.length ? (

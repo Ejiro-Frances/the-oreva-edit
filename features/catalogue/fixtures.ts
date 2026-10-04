@@ -1,5 +1,6 @@
 import type { Category, Product, DeliveryZone } from './types';
 import { expandedProducts } from './fixture-expansion.ts';
+import { menswearProducts } from './fixture-menswear.ts';
 
 export const categories: Category[] = [
   'Dresses',
@@ -14,11 +15,16 @@ export const categories: Category[] = [
   'Kids clothing',
   'Skirts',
   'Shorts',
+  'Caps',
+  'Sunglasses',
+  'Boxers',
+  'Singlets',
+  'Jackets',
 ].map((name, i) => ({
   id: `10000000-0000-4000-8000-${String(i + 1).padStart(12, '0')}`,
   name,
   slug: name.toLowerCase().replaceAll(' ', '-'),
-  parent_id: null,
+  parent_id: ['Caps', 'Sunglasses'].includes(name) ? '10000000-0000-4000-8000-000000000009' : null,
   position: i,
   active: true,
 }));
@@ -189,6 +195,7 @@ export const products: Product[] = [
     ],
   })),
   ...expandedProducts,
+  ...menswearProducts,
 ];
 export const deliveryZones: DeliveryZone[] = [
   {

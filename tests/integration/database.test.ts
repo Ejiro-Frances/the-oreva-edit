@@ -44,6 +44,22 @@ describe('PostgreSQL schema, transactions and RLS', () => {
       await db.exec('reset role');
     }
   });
+  it('seeds the men’s range and accessory category parents', async () => {
+    const men = await db.query<{ slug: string }>(
+      "select slug from public.catalogue where audience='men'",
+    );
+    expect(men.rows).toHaveLength(12);
+    expect(men.rows.map((p) => p.slug)).toEqual(
+      expect.arrayContaining(['everyday-boxer-briefs', 'everyday-singlet', 'city-varsity-jacket']),
+    );
+    const children = await db.query<{ slug: string; parent: string }>(
+      "select c.slug, p.slug as parent from public.categories c join public.categories p on p.id=c.parent_id where c.slug in ('caps','sunglasses') order by c.slug",
+    );
+    expect(children.rows).toEqual([
+      { slug: 'caps', parent: 'accessories' },
+      { slug: 'sunglasses', parent: 'accessories' },
+    ]);
+  });
   it('does not permit customer role escalation', async () => {
     await expect(
       asUser(customer, `insert into public.user_roles values('${customer}','admin')`),
