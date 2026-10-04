@@ -3,7 +3,9 @@ import { test, expect } from '@playwright/test';
 test('Men shows the expanded range and relevant category shortcuts', async ({ page }, info) => {
   await page.goto('/men');
   await expect(page.getByRole('heading', { name: 'Men', exact: true })).toBeVisible();
-  await expect(page.getByText('12 pieces in this edit', { exact: true })).toBeVisible();
+  await expect(
+    page.locator('#main-content').getByText('12 pieces in this edit', { exact: true }),
+  ).toBeVisible();
   for (const name of [
     'The open-layer shirt',
     'The textured straight trousers',
