@@ -18,14 +18,18 @@ export function CheckoutForm({
   products,
   zones,
   enabled,
-  email = '',
+  signedInAs,
+  defaults,
   addresses = [],
+  selectedAddress = '',
 }: {
   products: Product[];
   zones: DeliveryZone[];
   enabled: boolean;
-  email?: string;
+  signedInAs?: string;
+  defaults: Partial<CheckoutInput>;
   addresses?: { id: string; label: string; details: Omit<CheckoutInput, 'email'> }[];
+  selectedAddress?: string;
 }) {
   const { lines, clear, ready } = useShopping();
   const router = useRouter();
@@ -41,17 +45,7 @@ export function CheckoutForm({
     formState: { errors, isSubmitting },
   } = useForm<CheckoutInput>({
     resolver: zodResolver(checkoutSchema),
-    defaultValues: {
-      email,
-      firstName: '',
-      lastName: '',
-      phone: '',
-      city: '',
-      address: '',
-      lga: '',
-      landmark: '',
-      instructions: '',
-    },
+    defaultValues: defaults,
   });
   const selectedState = useWatch({ control, name: 'state' });
   const zone = zones.find((z) => z.active && z.states.includes(selectedState));
@@ -163,10 +157,16 @@ export function CheckoutForm({
             {input('phone', 'Nigerian mobile number', 'tel', 'tel', true)}
           </div>
           <p className="caption" style={{ marginTop: 15 }}>
-            Have an account?{' '}
-            <Link href="/login?next=/checkout" className="text-link">
-              Sign in
-            </Link>
+            {signedInAs ? (
+              <>Signed in as {signedInAs}</>
+            ) : (
+              <>
+                Have an account?{' '}
+                <Link href="/login?next=/checkout" className="text-link">
+                  Sign in
+                </Link>
+              </>
+            )}
           </p>
         </section>
         <section className="form-section">
@@ -175,7 +175,7 @@ export function CheckoutForm({
             <Field id="saved-address" label="Use a saved address">
               <select
                 id="saved-address"
-                defaultValue=""
+                defaultValue={selectedAddress}
                 onChange={(e) => {
                   const a = addresses.find((a) => a.id === e.target.value);
                   if (a)

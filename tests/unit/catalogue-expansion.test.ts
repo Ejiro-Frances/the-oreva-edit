@@ -6,7 +6,7 @@ import { quoteOrder } from '@/features/checkout/pricing';
 
 describe('expanded development catalogue', () => {
   it('has unique product URLs, variant identities, SKUs and option combinations', () => {
-    expect(products).toHaveLength(24);
+    expect(products).toHaveLength(32);
     expect(new Set(products.map((p) => p.id)).size).toBe(products.length);
     expect(new Set(products.map((p) => p.slug)).size).toBe(products.length);
     const variants = products.flatMap((p) => p.variants);
@@ -42,7 +42,7 @@ describe('expanded development catalogue', () => {
     ]);
     expect(
       filterProducts(products, { category: 'shorts', audience: 'men' }).map((p) => p.slug),
-    ).toEqual(['weekend-drawstring-shorts']);
+    ).toEqual(['weekend-drawstring-shorts', 'washed-denim-shorts']);
   });
   it('charges the chosen length price and retains its colour image', () => {
     const product = products.find((p) => p.slug === 'daybreak-trousers')!;
