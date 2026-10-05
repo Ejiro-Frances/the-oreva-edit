@@ -22,6 +22,12 @@ create_test_order is callable only by service_role; server routes validate all i
 
 save_product is admin-only and atomic. Existing products use updated_at optimistic concurrency; variant stock must match the editor's expected stock before an adjustment. Publishing requires a photograph and active variant. Historical variants are deactivated, not deleted.
 
+## Cart sync
+
+Clients change the saved bag with PATCH /api/shopping line operations (`add`, `set`, `remove`, `wish`, `unwish`), never by replacing the document. The server re-reads the row, applies the operations with stock and 20-per-line caps, and writes only if `updated_at` is unchanged, retrying up to three times before answering 409 `cart_conflict`. Sign-in merges use the same conditional write. Capped or dropped variants are returned in `adjusted`.
+
+`202610050002_shopping_realtime.sql` adds `shopping_state` to the `supabase_realtime` publication. RLS (`own_shopping`) limits events to the owner. Web and mobile subscribe with `user_id=eq.<uid>` and refetch GET /api/shopping on every event and when they return to the foreground.
+
 ## Colour photography
 
 Apply `202610030001_variant_images.sql` before deploying the variant photograph editor. `product_variants.image` references a URL belonging to that same product; a composite foreign key prevents assigning another product's media. Removing an image clears variant links, while existing order snapshot URLs remain unchanged. The order transaction saves the selected variant's photograph.
