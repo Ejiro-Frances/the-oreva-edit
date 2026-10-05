@@ -43,6 +43,18 @@ describe('checkout prefill', () => {
     });
   });
 
+  it('prefers stored first and last names over splitting the display name', () => {
+    const d = checkoutDefaults({
+      profile: {
+        display_name: 'Mary Jane Bello',
+        first_name: 'Mary Jane',
+        last_name: 'Bello',
+        phone: '',
+      },
+    });
+    expect([d.firstName, d.lastName]).toEqual(['Mary Jane', 'Bello']);
+  });
+
   it('leaves the last name empty for a single-word name', () => {
     const d = checkoutDefaults({ profile: { display_name: '  Tolu ', phone: '' } });
     expect([d.firstName, d.lastName, d.phone]).toEqual(['Tolu', '', '']);

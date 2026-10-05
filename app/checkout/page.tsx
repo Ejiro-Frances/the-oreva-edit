@@ -20,7 +20,7 @@ export default async function Page() {
           .then((r) => r.data || []),
         db
           .from('profiles')
-          .select('display_name,phone')
+          .select('display_name,first_name,last_name,phone')
           .eq('id', user!.id)
           .maybeSingle()
           .then((r) => r.data),

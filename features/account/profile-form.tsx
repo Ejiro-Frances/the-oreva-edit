@@ -2,11 +2,13 @@
 import { useState } from 'react';
 import { Field } from '@/components/ui/field';
 export function ProfileForm({
-  name,
+  firstName,
+  lastName,
   phone,
   email,
 }: {
-  name: string;
+  firstName: string;
+  lastName: string;
   phone: string;
   email: string;
 }) {
@@ -26,7 +28,8 @@ export function ProfileForm({
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({
               action: 'profile',
-              display_name: data.get('display_name'),
+              first_name: data.get('first_name'),
+              last_name: data.get('last_name'),
               phone: data.get('phone'),
             }),
           });
@@ -43,12 +46,29 @@ export function ProfileForm({
         <Field id="email" label="Sign-in email" className="span-2">
           <input id="email" type="email" value={email} readOnly aria-describedby="email-note" />
           <p className="caption" id="email-note">
-            Managed by your sign-in provider.
+            Your sign-in email can’t be changed here.
           </p>
         </Field>
       )}
-      <Field id="display_name" label="Display name">
-        <input name="display_name" id="display_name" defaultValue={name} required maxLength={120} />
+      <Field id="first_name" label="First name" required>
+        <input
+          name="first_name"
+          id="first_name"
+          defaultValue={firstName}
+          autoComplete="given-name"
+          required
+          maxLength={60}
+        />
+      </Field>
+      <Field id="last_name" label="Last name" required>
+        <input
+          name="last_name"
+          id="last_name"
+          defaultValue={lastName}
+          autoComplete="family-name"
+          required
+          maxLength={60}
+        />
       </Field>
       <Field id="phone" label="Nigerian mobile number (optional)">
         <input id="phone" name="phone" type="tel" defaultValue={phone} />

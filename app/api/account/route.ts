@@ -5,7 +5,8 @@ import { sameOrigin, readJson, apiError, AppError } from '@/lib/security';
 const schema = z.discriminatedUnion('action', [
   z.object({
     action: z.literal('profile'),
-    display_name: z.string().trim().min(1).max(120),
+    first_name: z.string().trim().min(1, 'Enter your first name').max(60),
+    last_name: z.string().trim().min(1, 'Enter your last name').max(60),
     phone: z.union([addressSchema.shape.phone, z.literal('')]),
   }),
   z.object({
@@ -29,7 +30,9 @@ export async function POST(request: Request) {
         ? await db
             .from('profiles')
             .update({
-              display_name: p.display_name,
+              first_name: p.first_name,
+              last_name: p.last_name,
+              display_name: `${p.first_name} ${p.last_name}`,
               phone: p.phone,
               updated_at: new Date().toISOString(),
             })

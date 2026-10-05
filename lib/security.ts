@@ -6,6 +6,8 @@ export class AppError extends Error {
   constructor(
     message: string,
     public status = 400,
+    /** Optional machine-readable reason the client can branch on. */
+    public code?: string,
   ) {
     super(message);
   }
@@ -46,7 +48,10 @@ export function apiError(error: unknown) {
       { status: 400 },
     );
   if (error instanceof AppError)
-    return Response.json({ error: error.message }, { status: error.status });
+    return Response.json(
+      error.code ? { error: error.message, code: error.code } : { error: error.message },
+      { status: error.status },
+    );
   console.error(
     JSON.stringify({
       event: 'request_failed',
