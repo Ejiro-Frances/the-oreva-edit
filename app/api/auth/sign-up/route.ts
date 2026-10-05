@@ -1,14 +1,23 @@
 import { signUpSchema } from '@/lib/validation';
 import { rateLimit } from '@/lib/rate-limit';
 import { apiError, readJson, sameOrigin } from '@/lib/security';
-import { authClient, authFailure, clientIp } from '@/lib/auth/accounts';
+import {
+  authClient,
+  authFailure,
+  clientIp,
+  isMobileClient,
+  sessionBody,
+  statelessAuthClient,
+} from '@/lib/auth/accounts';
 export async function POST(request: Request) {
   try {
-    sameOrigin(request);
-    const input = signUpSchema.parse(await readJson(request));
+    const body = await readJson(request);
+    const mobile = isMobileClient(body);
+    if (!mobile) sameOrigin(request);
+    const input = signUpSchema.parse(body);
     // Generous per IP: Nigerian mobile carriers put many customers behind one shared address.
     await rateLimit('sign-up:' + clientIp(request), 20, 600);
-    const db = await authClient();
+    const db = mobile ? statelessAuthClient() : await authClient();
     const { data, error } = await db.auth.signUp({
       email: input.email,
       password: input.password,
@@ -30,6 +39,8 @@ export async function POST(request: Request) {
       const saved = await db.from('profiles').update({ phone: input.phone }).eq('id', data.user.id);
       if (saved.error) console.error(JSON.stringify({ event: 'sign_up_phone_save_failed' }));
     }
+    if (mobile)
+      return Response.json(sessionBody(data.session), { headers: { 'Cache-Control': 'no-store' } });
     return Response.json({ ok: true });
   } catch (error) {
     return apiError(error);

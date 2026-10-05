@@ -1,14 +1,22 @@
 import { emailOnlySchema } from '@/lib/validation';
 import { rateLimit } from '@/lib/rate-limit';
 import { apiError, readJson, sameOrigin } from '@/lib/security';
-import { authClient, clientIp, confirmUrl } from '@/lib/auth/accounts';
+import {
+  authClient,
+  clientIp,
+  confirmUrl,
+  isMobileClient,
+  statelessAuthClient,
+} from '@/lib/auth/accounts';
 export async function POST(request: Request) {
   try {
-    sameOrigin(request);
-    const { email } = emailOnlySchema.parse(await readJson(request));
+    const body = await readJson(request);
+    const mobile = isMobileClient(body);
+    if (!mobile) sameOrigin(request);
+    const { email } = emailOnlySchema.parse(body);
     await rateLimit(`forgot-password:${clientIp(request)}`, 10, 600);
     const { error } = await (
-      await authClient()
+      mobile ? statelessAuthClient() : await authClient()
     ).auth.resetPasswordForEmail(email, {
       redirectTo: confirmUrl,
     });
