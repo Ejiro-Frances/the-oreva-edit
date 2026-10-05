@@ -1,6 +1,7 @@
 import { NextResponse, type NextRequest } from 'next/server';
 import { sessionClient } from '@/lib/supabase/server';
 import { siteUrl } from '@/lib/config';
+import { claimAccountWithGoogle } from '@/lib/auth/accounts';
 import {
   GOOGLE_STATE_COOKIE,
   exchangeGoogleCode,
@@ -23,13 +24,23 @@ export async function GET(request: NextRequest) {
   if (pending && code && db) {
     try {
       const token = await exchangeGoogleCode(code, pending.verifier);
-      const { error } = await db.auth.signInWithIdToken({
+      const { data, error } = await db.auth.signInWithIdToken({
         provider: 'google',
         token,
         nonce: pending.nonce,
       });
       if (error) logFailure('supabase_rejected_token', error.code || error.message);
-      else destination = pending.next;
+      else if (data.user) {
+        try {
+          // Google proves the address; any password set before it was verified is removed.
+          await claimAccountWithGoogle(data.user, db);
+          destination = pending.next;
+        } catch (claimError) {
+          // Never leave the owner signed in to an account someone else may still access.
+          await db.auth.signOut({ scope: 'local' });
+          logFailure('account_claim', claimError instanceof Error ? claimError.message : 'unknown');
+        }
+      }
     } catch (error) {
       logFailure('token_exchange', error instanceof Error ? error.message : 'unknown');
     }

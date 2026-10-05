@@ -1435,7 +1435,7 @@ label.required::after {
   position: relative;
 }
 .login-content {
-  padding: 70px;
+  padding: 2rem 4.375rem;
   display: flex;
   flex-direction: column;
   justify-content: center;
@@ -1448,6 +1448,117 @@ label.required::after {
   color: var(--muted);
   max-width: 380px;
   margin-bottom: 25px;
+}
+.auth-panel {
+  width: 100%;
+  max-width: 440px;
+}
+.auth-divider {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin: 20px 0 !important;
+  max-width: none !important;
+  font-size: 11px;
+  text-transform: uppercase;
+  letter-spacing: 0.1em;
+}
+.auth-divider::before,
+.auth-divider::after {
+  content: '';
+  flex: 1;
+  border-top: 1px solid var(--border);
+}
+.auth-tabs {
+  display: flex;
+  gap: 24px;
+  margin-bottom: 22px;
+  border-bottom: 1px solid var(--border);
+}
+.auth-tabs a {
+  display: inline-flex;
+  align-items: center;
+  min-height: 44px;
+  font-size: 13px;
+  border-bottom: 2px solid transparent;
+  margin-bottom: -1px;
+}
+.auth-tabs a[aria-current='page'],
+.auth-tabs a:hover {
+  color: var(--primary);
+  border-bottom-color: var(--primary);
+}
+.auth-form {
+  display: flex;
+  flex-direction: column;
+  gap: 18px;
+  width: 100%;
+}
+.login-content .field-error {
+  color: var(--destructive);
+}
+.auth-form .caption,
+.auth-form .field-error {
+  margin: 0 !important;
+}
+.auth-aside {
+  align-self: flex-end;
+  margin-top: -12px;
+  font-size: 12px;
+  min-height: 44px;
+}
+.password-input {
+  position: relative;
+}
+.password-input input {
+  padding-right: 52px;
+}
+.password-input button {
+  position: absolute;
+  top: 0;
+  right: 0;
+  width: 46px;
+  height: 100%;
+  display: grid;
+  place-items: center;
+  color: var(--muted);
+}
+.password-input button:hover,
+.password-input button:focus-visible {
+  color: var(--primary);
+}
+.auth-page {
+  max-width: 520px;
+  padding-block: 60px;
+  display: flex;
+  flex-direction: column;
+  gap: 18px;
+}
+.auth-page > .button {
+  align-self: flex-start;
+}
+.verify-banner {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  padding: 18px 20px;
+  margin-bottom: 30px;
+  border: 1px solid var(--border);
+  border-left: 3px solid var(--primary);
+  background: var(--surface);
+}
+.verify-banner h2 {
+  font-size: 15px;
+  margin: 0 0 4px;
+}
+.verify-banner p {
+  margin: 0;
+  font-size: 12px;
+}
+.verify-banner .caption:empty {
+  display: none;
 }
 .account-layout {
   display: grid;

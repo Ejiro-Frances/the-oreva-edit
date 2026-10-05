@@ -4,7 +4,31 @@ Supabase Auth owns identity. Google sign-in returns to the store domain, not the
 
 Create a Google Cloud web OAuth client with Authorised JavaScript origin https://STORE_DOMAIN and Authorised redirect URI https://STORE_DOMAIN/auth/google (add http://localhost:3000 equivalents for local work). Set GOOGLE_CLIENT_ID and GOOGLE_CLIENT_SECRET as server-only environment variables. In Supabase, enable the Google provider and add the same client ID to Authorized Client IDs so signInWithIdToken accepts the token; keep nonce checks on. Set the Supabase Site URL to the deployed NEXT_PUBLIC_SITE_URL and allow the exact /auth/callback URLs for staging and production. Do not permit arbitrary preview domains in production. The callback accepts only internal account/admin/wishlist/checkout destinations and never trusts a user-provided origin.
 
-No credentials means a visible unavailable sign-in state. There is no fixture login, hardcoded administrator, test-password endpoint or client-side role grant. Email auth can be added through Supabase without changing profile ownership.
+No credentials means a visible unavailable sign-in state. There is no fixture login, hardcoded administrator, test-password endpoint or client-side role grant.
+
+## Email and password
+
+/login has Sign in and Create account tabs (`?mode=signup`) beside Google. Sign-up asks for first name, last name, email, password (8–72 characters, one field with a show/hide toggle) and an optional Nigerian mobile number; customers are signed in immediately. Errors keep everything typed except the password. Sign-in failures always say "Email or password is incorrect" so the form cannot be used to discover accounts; the one exception is sign-up, which says an account already exists and links to sign-in and reset.
+
+Supabase **Confirm email stays off**, so Supabase marks every address confirmed. Ownership is tracked in `profiles.email_verified_at`, which customers cannot write (no column grant); only the server sets it with the secret key:
+
+- Account pages show a non-blocking "Please verify your email" banner. Its button calls POST /api/account/verify-email (1 per minute), which uses Supabase signInWithOtp (Magic Link template, no account creation).
+- Every emailed link goes to GET /auth/confirm, which checks the one-time token_hash with verifyOtp on the server, sets email_verified_at, then redirects (verification → /account?verified=1, reset → /reset-password). Invalid or expired links redirect with a friendly error.
+- A password reset link also proves ownership, so it verifies the address too. Google sign-in marks the address verified.
+- Pre-account takeover: because Supabase treats every password sign-up as confirmed, someone could register an address they do not own, and Supabase would later link the owner's Google sign-in to that account. On Google sign-in, if the profile was never verified and the account has a password, the server replaces the password with a random one and signs out every other session before marking the address verified (`claimAccountWithGoogle`). If that fails, the Google sign-in is refused. An owner who had set that password themselves can set it again with Forgot password.
+- Unverified accounts are not restricted in any way.
+
+Forgot password: /forgot-password always shows the same confirmation whether or not the account exists. /reset-password sets the new password for the session created by the reset link.
+
+Rate limits: sign-in 10 per 10 minutes per IP and email; sign-up 20 and forgot password 10 per 10 minutes per IP (generous because mobile carriers share addresses); verification email 1 per minute per account. Supabase applies its own email limits as well.
+
+### Hosted Supabase setup (once per project)
+
+1. Authentication → Sign In / Providers → Email: enable, **turn Confirm email off**, minimum password length 8.
+2. Authentication → URL Configuration: Site URL = NEXT_PUBLIC_SITE_URL; add `https://STORE_DOMAIN/auth/confirm` (and `http://localhost:3000/auth/confirm` for local work) to Redirect URLs. Emailed links fall back to the Site URL root if this is missing, and will not work.
+3. Authentication → Email Templates: paste `supabase/templates/verify-email.html` into **Magic Link** (subject "Verify your email for The Oreva Edit") and `supabase/templates/reset-password.html` into **Reset Password** (subject "Reset your password for The Oreva Edit"). Local Supabase uses these files automatically via config.toml.
+4. Apply the migration `202610050001_email_password_auth.sql` (`supabase db push`).
+5. Delivery: without custom SMTP, Supabase only sends to members of the project team and about 2 emails per hour. For customers, set Authentication → SMTP Settings to Mailgun (host smtp.mailgun.org, port 587, an SMTP credential for your own sending domain). No code change is needed.
 
 After a verified staff user signs in, the project owner can assign admin from the SQL editor:
 

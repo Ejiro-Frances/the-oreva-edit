@@ -77,7 +77,8 @@ test.describe('Local Supabase customer and staff workflows', () => {
   }) => {
     await signIn(context, customerEmail);
     await page.goto('/account/profile');
-    await page.getByLabel('Display name').fill('Synthetic Customer');
+    await page.getByLabel('First name').fill('Synthetic');
+    await page.getByLabel('Last name').fill('Customer');
     await page.getByRole('button', { name: 'Save profile' }).click();
     await expect(page.getByRole('status').filter({ hasText: 'saved' })).toBeVisible();
     await page.goto('/products/sade-midi-dress');

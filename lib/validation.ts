@@ -29,6 +29,37 @@ export const checkoutSchema = addressSchema.extend({
     .regex(/^0[789][01]\d{8}$/, 'Enter a Nigerian mobile number, e.g. 08012345678'),
 });
 export type CheckoutInput = z.infer<typeof checkoutSchema>;
+// 72 bytes is the bcrypt limit Supabase Auth applies; longer input would be silently truncated.
+const password = z
+  .string()
+  .min(8, 'Use at least 8 characters')
+  .max(72, 'Use 72 characters or fewer');
+const accountEmail = z
+  .string()
+  .trim()
+  .toLowerCase()
+  .pipe(z.email('Enter a valid email address').max(254));
+export const signUpSchema = z.object({
+  firstName: z.string().trim().min(1, 'Enter your first name').max(60),
+  lastName: z.string().trim().min(1, 'Enter your last name').max(60),
+  email: accountEmail,
+  password,
+  phone: z
+    .string()
+    .trim()
+    .refine(
+      (v) => v === '' || addressSchema.shape.phone.safeParse(v).success,
+      'Enter a Nigerian mobile number, e.g. 08012345678',
+    )
+    .transform(localPhone),
+});
+export type SignUpInput = z.input<typeof signUpSchema>;
+export const signInSchema = z.object({
+  email: accountEmail,
+  password: z.string().min(1, 'Enter your password').max(1024),
+});
+export const emailOnlySchema = z.object({ email: accountEmail });
+export const newPasswordSchema = z.object({ password });
 export const orderRequestSchema = z.object({
   contact: checkoutSchema,
   items: cartSchema.min(1),
