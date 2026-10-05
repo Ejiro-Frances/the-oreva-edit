@@ -1,9 +1,24 @@
 import Link from 'next/link';
 import { currentUser } from '@/lib/supabase/server';
-export default async function Page() {
-  const user = await currentUser();
+export default async function Page({
+  searchParams,
+}: {
+  searchParams: Promise<{ verified?: string; password?: string }>;
+}) {
+  const [user, query] = await Promise.all([currentUser(), searchParams]);
+  const notice =
+    query.verified === '1'
+      ? 'Email verified ✓ Thank you for confirming your address.'
+      : query.password === 'updated'
+        ? 'Your password has been updated.'
+        : '';
   return (
     <>
+      {notice && (
+        <p role="status" className="notice-box">
+          {notice}
+        </p>
+      )}
       <span className="eyebrow">YOUR OWN LITTLE EDIT</span>
       <h1>Welcome back.</h1>
       <p className="muted">{user?.email}</p>

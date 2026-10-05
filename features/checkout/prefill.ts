@@ -1,7 +1,20 @@
 import { localPhone, type CheckoutInput } from '@/lib/validation';
 
-export type CheckoutProfile = { display_name: string; phone: string };
+export type CheckoutProfile = {
+  display_name: string;
+  phone: string;
+  first_name?: string;
+  last_name?: string;
+};
 export type SavedAddress = Omit<CheckoutInput, 'email'>;
+
+/** Stored first/last names win; older profiles only have a display name to split. */
+function profileName(profile?: CheckoutProfile | null) {
+  if (profile?.first_name?.trim())
+    return { firstName: profile.first_name.trim(), lastName: profile.last_name?.trim() ?? '' };
+  const [firstName = '', ...rest] = (profile?.display_name ?? '').trim().split(/\s+/);
+  return { firstName, lastName: rest.join(' ') };
+}
 
 /**
  * Initial checkout values for the shopper. Delivery fields come from their most
@@ -17,7 +30,7 @@ export function checkoutDefaults({
   profile?: CheckoutProfile | null;
   address?: SavedAddress | null;
 }): Partial<CheckoutInput> {
-  const [firstName = '', ...rest] = (profile?.display_name ?? '').trim().split(/\s+/);
+  const name = profileName(profile);
   const blank = {
     firstName: '',
     lastName: '',
@@ -29,7 +42,7 @@ export function checkoutDefaults({
     instructions: '',
   };
   const merged = { ...blank, ...address, email };
-  if (firstName) Object.assign(merged, { firstName, lastName: rest.join(' ') });
+  if (name.firstName) Object.assign(merged, name);
   if (profile?.phone) merged.phone = profile.phone;
   return { ...merged, phone: localPhone(merged.phone) };
 }

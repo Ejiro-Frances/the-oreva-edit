@@ -13,7 +13,7 @@ export default async function Page() {
   const { user, db } = await requireCustomer();
   const { data, error } = await db!
     .from('profiles')
-    .select('display_name,phone')
+    .select('first_name,last_name,phone')
     .eq('id', user!.id)
     .single();
   if (error) throw error;
@@ -33,7 +33,12 @@ export default async function Page() {
           referrerPolicy="no-referrer"
         />
       )}
-      <ProfileForm name={data.display_name} phone={data.phone} email={user!.email ?? ''} />
+      <ProfileForm
+        firstName={data.first_name}
+        lastName={data.last_name}
+        phone={data.phone}
+        email={user!.email ?? ''}
+      />
     </>
   );
 }

@@ -9,7 +9,7 @@ const customer = '50000000-0000-4000-8000-000000000001',
 beforeAll(async () => {
   db = new PGlite();
   await db.exec(
-    `create role anon;create role authenticated;create role service_role bypassrls;create schema auth;create schema storage;create table auth.users(id uuid primary key,email text,raw_user_meta_data jsonb default '{}');create function auth.uid()returns uuid language sql stable as $$select nullif(current_setting('request.jwt.claim.sub',true),'')::uuid$$;grant usage on schema auth to anon,authenticated;grant execute on function auth.uid() to anon,authenticated;create table storage.buckets(id text primary key,name text,public boolean,file_size_limit bigint,allowed_mime_types text[]);create table storage.objects(id uuid primary key default gen_random_uuid(),bucket_id text,name text);alter table storage.objects enable row level security;`,
+    `create role anon;create role authenticated;create role service_role bypassrls;create schema auth;create schema storage;create table auth.users(id uuid primary key,email text,raw_user_meta_data jsonb default '{}');create table auth.identities(user_id uuid,provider text);create function auth.uid()returns uuid language sql stable as $$select nullif(current_setting('request.jwt.claim.sub',true),'')::uuid$$;grant usage on schema auth to anon,authenticated;grant execute on function auth.uid() to anon,authenticated;create table storage.buckets(id text primary key,name text,public boolean,file_size_limit bigint,allowed_mime_types text[]);create table storage.objects(id uuid primary key default gen_random_uuid(),bucket_id text,name text);alter table storage.objects enable row level security;`,
   );
   for (const file of (await readdir('supabase/migrations')).sort()) {
     const sql = (await readFile('supabase/migrations/' + file, 'utf8')).replace(
@@ -272,6 +272,43 @@ describe('Administrator publishing and moderation', () => {
   it('prevents customers rewriting their identity email', async () => {
     await expect(
       asUser(customer, "update public.profiles set email='impersonation@example.test'"),
+    ).rejects.toThrow('permission denied');
+  });
+  it('stores sign-up names on the new profile, unverified', async () => {
+    const id = '50000000-0000-4000-8000-000000000010';
+    await db.query(
+      `insert into auth.users(id,email,raw_user_meta_data)values($1,'names@example.test',$2)`,
+      [id, JSON.stringify({ first_name: 'Mary Jane', last_name: 'Bello' })],
+    );
+    expect(
+      (
+        await db.query(
+          'select display_name,first_name,last_name,email_verified_at from public.profiles where id=$1',
+          [id],
+        )
+      ).rows[0],
+    ).toEqual({
+      display_name: 'Mary Jane Bello',
+      first_name: 'Mary Jane',
+      last_name: 'Bello',
+      email_verified_at: null,
+    });
+  });
+  it('splits a provider full name when no separate names are given', async () => {
+    const id = '50000000-0000-4000-8000-000000000011';
+    await db.query(
+      `insert into auth.users(id,email,raw_user_meta_data)values($1,'google@example.test',$2)`,
+      [id, JSON.stringify({ full_name: 'Tolu Ade Bello' })],
+    );
+    expect(
+      (await db.query('select first_name,last_name from public.profiles where id=$1', [id]))
+        .rows[0],
+    ).toEqual({ first_name: 'Tolu', last_name: 'Ade Bello' });
+  });
+  it('lets customers edit their names but never mark their own email verified', async () => {
+    await asUser(customer, "update public.profiles set first_name='Ada',last_name='Obi'");
+    await expect(
+      asUser(customer, 'update public.profiles set email_verified_at=now()'),
     ).rejects.toThrow('permission denied');
   });
 });
