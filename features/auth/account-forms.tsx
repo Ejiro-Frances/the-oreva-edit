@@ -6,6 +6,7 @@ import { Field } from '@/components/ui/field';
 import { signInSchema, signUpSchema } from '@/lib/validation';
 import { PasswordInput } from './password-input';
 import { postJson } from './post-json';
+import { useHydrated } from './use-hydrated';
 
 type Errors = Record<string, string | undefined>;
 
@@ -70,6 +71,7 @@ function input(name: string, errors: Errors, props: React.InputHTMLAttributes<HT
 }
 
 export function SignInForm({ next }: { next: string }) {
+  const hydrated = useHydrated();
   const { errors, failure, busy, onSubmit } = useAccountForm(
     signInSchema,
     '/api/auth/sign-in',
@@ -101,7 +103,7 @@ export function SignInForm({ next }: { next: string }) {
           {failure.message}
         </p>
       )}
-      <button className="button full" disabled={busy}>
+      <button className="button full" disabled={busy || !hydrated}>
         {busy ? 'Signing in…' : 'Sign in'}
       </button>
     </form>
@@ -109,6 +111,7 @@ export function SignInForm({ next }: { next: string }) {
 }
 
 export function SignUpForm({ next }: { next: string }) {
+  const hydrated = useHydrated();
   const { errors, failure, notice, busy, onSubmit } = useAccountForm(
     signUpSchema,
     '/api/auth/sign-up',
@@ -190,7 +193,7 @@ export function SignUpForm({ next }: { next: string }) {
           )}
         </p>
       )}
-      <button className="button full" disabled={busy}>
+      <button className="button full" disabled={busy || !hydrated}>
         {busy ? 'Creating your account…' : 'Create account'}
       </button>
     </form>

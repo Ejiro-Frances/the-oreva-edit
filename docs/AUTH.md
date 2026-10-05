@@ -15,11 +15,12 @@ Supabase **Confirm email stays off**, so Supabase marks every address confirmed.
 - Account pages show a non-blocking "Please verify your email" banner. Its button calls POST /api/account/verify-email (1 per minute), which uses Supabase signInWithOtp (Magic Link template, no account creation).
 - Every emailed link goes to GET /auth/confirm, which checks the one-time token_hash with verifyOtp on the server, sets email_verified_at, then redirects (verification → /account?verified=1, reset → /reset-password). Invalid or expired links redirect with a friendly error.
 - A password reset link also proves ownership, so it verifies the address too. Google sign-in marks the address verified.
+- Pre-account takeover: because Supabase treats every password sign-up as confirmed, someone could register an address they do not own, and Supabase would later link the owner's Google sign-in to that account. On Google sign-in, if the profile was never verified and the account has a password, the server replaces the password with a random one and signs out every other session before marking the address verified (`claimAccountWithGoogle`). If that fails, the Google sign-in is refused. An owner who had set that password themselves can set it again with Forgot password.
 - Unverified accounts are not restricted in any way.
 
 Forgot password: /forgot-password always shows the same confirmation whether or not the account exists. /reset-password sets the new password for the session created by the reset link.
 
-Rate limits: sign-in 10 per 10 minutes per IP and email; sign-up and forgot password 5 per 10 minutes per IP; verification email 1 per minute per account. Supabase applies its own email limits as well.
+Rate limits: sign-in 10 per 10 minutes per IP and email; sign-up 20 and forgot password 10 per 10 minutes per IP (generous because mobile carriers share addresses); verification email 1 per minute per account. Supabase applies its own email limits as well.
 
 ### Hosted Supabase setup (once per project)
 

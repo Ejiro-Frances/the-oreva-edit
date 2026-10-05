@@ -27,8 +27,14 @@ async function emailLink(email: string, subject: string) {
   return link;
 }
 
+/** Submit stays disabled until the form is interactive; typing earlier can be lost. */
+async function ready(page: Page, submit: string) {
+  await expect(page.getByRole('button', { name: submit, exact: true })).toBeEnabled();
+}
+
 async function signIn(page: Page, email: string, password: string) {
   await page.goto('/login');
+  await ready(page, 'Sign in');
   await page.getByLabel('Email address').fill(email);
   await page.getByLabel('Password', { exact: true }).fill(password);
   await page.getByRole('button', { name: 'Sign in', exact: true }).click();
@@ -57,6 +63,7 @@ test.describe('Email and password accounts', () => {
 
   test('sign up, verify, sign in again and reset the password', async ({ page, context }) => {
     await page.goto('/login?mode=signup');
+    await ready(page, 'Create account');
     await page.getByRole('button', { name: 'Create account' }).click();
     await expect(page.getByText('Enter your first name')).toBeVisible();
 
@@ -88,6 +95,7 @@ test.describe('Email and password accounts', () => {
     // A second account with the same email is refused with a way forward.
     await context.clearCookies();
     await page.goto('/login?mode=signup');
+    await ready(page, 'Create account');
     await page.getByLabel('First name').fill('Someone');
     await page.getByLabel('Last name').fill('Else');
     await page.getByLabel('Email address').fill(email);
@@ -105,10 +113,12 @@ test.describe('Email and password accounts', () => {
     await context.clearCookies();
     await page.goto('/login');
     await page.getByRole('link', { name: 'Forgot password?' }).click();
+    await ready(page, 'Send reset link');
     await page.getByLabel('Email address').fill(email);
     await page.getByRole('button', { name: 'Send reset link' }).click();
     await expect(page.getByText('If an account exists for that email')).toBeVisible();
     await page.goto(await emailLink(email, 'Reset your password'));
+    await ready(page, 'Save new password');
     await expect(page).toHaveURL(/\/reset-password$/);
     await page.getByLabel('New password').fill(newPassword);
     await page.getByRole('button', { name: 'Save new password' }).click();
@@ -133,6 +143,8 @@ test.describe('Email and password accounts', () => {
     if (error || !data.user) throw error || new Error('Missing test user');
 
     await page.goto('/login?mode=signup');
+
+    await ready(page, 'Create account');
     await page.getByLabel('First name').fill('Ada');
     await page.getByLabel('Last name').fill('Obi');
     await page.getByLabel('Email address').fill(googleEmail);
@@ -143,9 +155,12 @@ test.describe('Email and password accounts', () => {
     await expect(page.getByText('Email or password is incorrect.')).toBeVisible();
 
     await page.getByRole('link', { name: 'Forgot password?' }).click();
+
+    await ready(page, 'Send reset link');
     await page.getByLabel('Email address').fill(googleEmail);
     await page.getByRole('button', { name: 'Send reset link' }).click();
     await page.goto(await emailLink(googleEmail, 'Reset your password'));
+    await ready(page, 'Save new password');
     await page.getByLabel('New password').fill(password);
     await page.getByRole('button', { name: 'Save new password' }).click();
     await expect(page.getByText('Your password has been updated.')).toBeVisible();
