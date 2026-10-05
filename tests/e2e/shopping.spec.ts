@@ -208,6 +208,19 @@ test('server rejects cross-origin checkout and unauthorised admin writes', async
   });
   expect(malformed.status()).toBe(400);
 });
+test('catalogue API responses are cacheable while shopping responses are not', async ({
+  request,
+}) => {
+  const categories = await request.get('/api/catalogue/categories');
+  expect(categories.ok()).toBe(true);
+  expect(categories.headers()['cache-control']).toBe(
+    'public, s-maxage=60, stale-while-revalidate=300',
+  );
+  const shopping = await request.get('/api/shopping');
+  expect(shopping.headers()['cache-control']).toBe('no-store');
+  const orders = await request.get('/api/orders');
+  expect(orders.headers()['cache-control']).toBe('no-store');
+});
 
 test('mobile navigation has nested categories and closes after navigation', async ({
   page,

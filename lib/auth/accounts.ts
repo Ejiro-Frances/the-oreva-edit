@@ -1,9 +1,15 @@
 import 'server-only';
 import { randomBytes } from 'node:crypto';
-import type { AuthError, SupabaseClient, User } from '@supabase/supabase-js';
+import {
+  createClient,
+  type AuthError,
+  type Session,
+  type SupabaseClient,
+  type User,
+} from '@supabase/supabase-js';
 import { privilegedClient, sessionClient } from '@/lib/supabase/server';
 import { AppError } from '@/lib/security';
-import { siteUrl } from '@/lib/config';
+import { authConfigured, siteUrl } from '@/lib/config';
 import { authErrorMessage, CONFIRM_PATH } from './password';
 
 /** Where every Supabase email link returns; must be in the project's allowed redirect URLs. */
@@ -13,6 +19,34 @@ export async function authClient() {
   const db = await sessionClient();
   if (!db) throw new AppError('Account sign-in is not available yet.', 503);
   return db;
+}
+
+/** A Supabase client that never writes cookies; mobile receives the session in the body instead. */
+export function statelessAuthClient() {
+  if (!authConfigured()) throw new AppError('Account sign-in is not available yet.', 503);
+  return createClient(
+    process.env.NEXT_PUBLIC_SUPABASE_URL!,
+    process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY!,
+    { auth: { persistSession: false, autoRefreshToken: false } },
+  );
+}
+
+/**
+ * Mobile requests skip the same-origin check: they set no cookies and a cross-site page cannot
+ * read the response, so there is nothing to forge. Rate limits still apply.
+ */
+export const isMobileClient = (body: unknown) =>
+  typeof body === 'object' && body !== null && (body as { client?: unknown }).client === 'mobile';
+
+export function sessionBody(session: Session) {
+  return {
+    ok: true,
+    session: {
+      access_token: session.access_token,
+      refresh_token: session.refresh_token,
+      expires_at: session.expires_at,
+    },
+  };
 }
 
 export function clientIp(request: Request) {

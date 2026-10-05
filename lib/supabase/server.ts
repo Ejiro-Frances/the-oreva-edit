@@ -1,8 +1,9 @@
 import 'server-only';
 import { createServerClient } from '@supabase/ssr';
-import { createClient } from '@supabase/supabase-js';
+import { createClient, type SupabaseClient, type User } from '@supabase/supabase-js';
 import { cookies } from 'next/headers';
 import { authConfigured } from '@/lib/config';
+import { AppError, sameOrigin } from '@/lib/security';
 
 export async function sessionClient() {
   if (!authConfigured()) return null;
@@ -59,4 +60,44 @@ export async function adminUser() {
     .eq('role', 'admin')
     .maybeSingle();
   return data ? user : null;
+}
+
+export type RequestSession = { db: SupabaseClient; user: User | null; mode: 'bearer' | 'cookie' };
+
+const expired = () => new AppError('Please sign in again.', 401, 'session_expired');
+
+/**
+ * Identifies the caller of an API route. The mobile app sends `Authorization: Bearer <access
+ * token>` and is never read from cookies. Browsers use the cookie session and, for mutations,
+ * must pass the same-origin check; bearer requests skip it because a browser cannot attach that
+ * header to a cross-site request on its own.
+ */
+export async function requestSession(
+  request: Request,
+  { mutation = false }: { mutation?: boolean } = {},
+): Promise<RequestSession | null> {
+  const header = request.headers.get('authorization');
+  if (header === null) {
+    if (mutation) sameOrigin(request);
+    const db = await sessionClient();
+    if (!db) return null;
+    const { data } = await db.auth.getUser();
+    return { db, user: data.user ?? null, mode: 'cookie' };
+  }
+  if (!authConfigured()) return null;
+  const token = /^Bearer ([\w-]+\.[\w-]+\.[\w-]+)$/.exec(header)?.[1];
+  if (!token) throw expired();
+  const db = createClient(
+    process.env.NEXT_PUBLIC_SUPABASE_URL!,
+    process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY!,
+    {
+      auth: { persistSession: false, autoRefreshToken: false },
+      global: { headers: { Authorization: `Bearer ${token}` } },
+    },
+  );
+  const { data, error } = await db.auth.getUser(token);
+  if (error && error.status !== 401 && error.status !== 403)
+    throw new Error('Account service unavailable');
+  if (!data.user) throw expired();
+  return { db, user: data.user, mode: 'bearer' };
 }

@@ -32,7 +32,11 @@ const config: NextConfig = {
           },
         ],
       },
-      { source: '/api/:path*', headers: [{ key: 'Cache-Control', value: 'no-store' }] },
+      // The public catalogue routes set their own shared-cache header; this would replace it.
+      {
+        source: '/api/:path((?!catalogue/).*)',
+        headers: [{ key: 'Cache-Control', value: 'no-store' }],
+      },
       {
         source: '/account/:path*',
         headers: [{ key: 'Cache-Control', value: 'private, no-store' }],
