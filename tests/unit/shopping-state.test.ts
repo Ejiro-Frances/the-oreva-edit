@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest';
-import { changeShopping, shoppingView } from '@/features/cart/state';
+import { mergeCart } from '@/features/cart/merge';
+import { changeShopping, shoppingView, writeShopping } from '@/features/cart/state';
 import { products } from '@/features/catalogue/fixtures';
 import { fakeShoppingDb, type FakeRow } from '../support/fake-shopping-db';
 
@@ -51,6 +52,26 @@ describe('changeShopping', () => {
       changeShopping(db, user, [{ op: 'add', variantId: a.id, quantity: 1 }], products),
     ).rejects.toMatchObject({ status: 409, code: 'cart_conflict' });
     expect(writes()).toBe(3);
+  });
+});
+
+describe('writeShopping', () => {
+  it('keeps another device write when a sign-in merge races it', async () => {
+    const { db, row } = fakeShoppingDb(saved([]), (current) => ({
+      ...current!,
+      lines: [{ variantId: b.id, quantity: 1 }],
+      updated_at: '2026-10-05T10:00:01.000Z',
+    }));
+    await writeShopping(db, user, products, (state) => ({
+      lines: mergeCart([{ variantId: a.id, quantity: 1 }], state.lines, products),
+      wishlist: state.wishlist,
+      adjusted: [],
+    }));
+    expect(
+      row()
+        ?.lines.map((l) => l.variantId)
+        .sort(),
+    ).toEqual([a.id, b.id].sort());
   });
 });
 

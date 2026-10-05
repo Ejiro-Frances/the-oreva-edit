@@ -55,10 +55,6 @@ export function fakeShoppingDb(
           return { data: [{ user_id: values.user_id }], error: null };
         },
       }),
-      upsert: async (values: FakeRow) => {
-        row = values;
-        return { error: null };
-      },
     }),
   };
   return { db: db as unknown as SupabaseClient, row: () => row, writes: () => attempts };

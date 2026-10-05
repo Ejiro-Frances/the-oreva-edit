@@ -2,7 +2,7 @@ import 'server-only';
 import type { SupabaseClient } from '@supabase/supabase-js';
 import { AppError } from '@/lib/security';
 import type { CartLine, Product } from '@/features/catalogue/types';
-import { applyShoppingOps, type ShoppingOp } from './ops';
+import { applyShoppingOps, type ShoppingOp, type ShoppingState } from './ops';
 import { lineDetails, type LineDetail } from './lines';
 
 export type ShoppingRow = { lines: CartLine[]; wishlist: string[]; updated_at: string };
@@ -40,19 +40,19 @@ export function shoppingView(row: ShoppingRow | null, products: Product[]): Shop
  * Applies one device's changes. The write only succeeds if the row is unchanged since it was
  * read (same updated_at); otherwise another device wrote first, so re-read and re-apply.
  */
-export async function changeShopping(
+export async function writeShopping(
   db: SupabaseClient,
   userId: string,
-  ops: ShoppingOp[],
   products: Product[],
+  transform: (state: ShoppingState) => {
+    lines: CartLine[];
+    wishlist: string[];
+    adjusted: string[];
+  },
 ) {
   for (let attempt = 0; attempt < 3; attempt++) {
     const row = await loadShoppingRow(db, userId);
-    const next = applyShoppingOps(
-      { lines: row?.lines ?? [], wishlist: row?.wishlist ?? [] },
-      ops,
-      products,
-    );
+    const next = transform({ lines: row?.lines ?? [], wishlist: row?.wishlist ?? [] });
     const values = {
       lines: next.lines,
       wishlist: next.wishlist,
@@ -74,4 +74,13 @@ export async function changeShopping(
       return { ...shoppingView(values, products), adjusted: next.adjusted };
   }
   throw new AppError('Your bag changed on another device. Please try again.', 409, 'cart_conflict');
+}
+
+export function changeShopping(
+  db: SupabaseClient,
+  userId: string,
+  ops: ShoppingOp[],
+  products: Product[],
+) {
+  return writeShopping(db, userId, products, (state) => applyShoppingOps(state, ops, products));
 }

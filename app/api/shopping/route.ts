@@ -6,7 +6,12 @@ import { requestSession } from '@/lib/supabase/server';
 import { readJson, apiError, AppError } from '@/lib/security';
 import { mergeCart } from '@/features/cart/merge';
 import { shoppingOpsSchema } from '@/features/cart/ops';
-import { changeShopping, loadShoppingRow, shoppingView } from '@/features/cart/state';
+import {
+  changeShopping,
+  loadShoppingRow,
+  shoppingView,
+  writeShopping,
+} from '@/features/cart/state';
 import { getProducts } from '@/features/catalogue/repository';
 
 const noStore = { headers: { 'Cache-Control': 'no-store' } };
@@ -59,16 +64,16 @@ export async function POST(request: Request) {
     if (!session?.user) return Response.json({ signedIn: false }, noStore);
     const { db, user } = session;
     const input = parsed.data;
-    const existing = await loadShoppingRow(db, user.id);
     const products = await getProducts();
-    const lines = mergeCart(input.lines, existing?.lines || [], products);
-    const wishlist = [...new Set([...input.wishlist, ...(existing?.wishlist || [])])]
-      .filter((id) => products.some((p) => p.id === id))
-      .slice(0, 500);
-    const { error } = await db
-      .from('shopping_state')
-      .upsert({ user_id: user.id, lines, wishlist, updated_at: new Date().toISOString() });
-    if (error) throw error;
+    const view = await writeShopping(db, user.id, products, (state) => ({
+      lines: mergeCart(input.lines, state.lines, products),
+      wishlist: [...new Set([...input.wishlist, ...state.wishlist])]
+        .filter((id) => products.some((p) => p.id === id))
+        .slice(0, 500),
+      adjusted: [],
+    }));
+    const lines = view.lines.map(({ variantId, quantity }) => ({ variantId, quantity }));
+    const { wishlist } = view;
     return Response.json({ signedIn: true, userId: user.id, lines, wishlist }, noStore);
   } catch (error) {
     return apiError(error);
