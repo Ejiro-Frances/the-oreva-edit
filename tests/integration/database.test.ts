@@ -311,6 +311,32 @@ describe('Administrator publishing and moderation', () => {
       asUser(customer, 'update public.profiles set email_verified_at=now()'),
     ).rejects.toThrow('permission denied');
   });
+  it('lets only one of two writes conditioned on the same updated_at succeed', async () => {
+    try {
+      const inserted = await asUser(
+        customer,
+        `insert into public.shopping_state(user_id,updated_at)values('${customer}','2026-10-05T10:00:00.000Z') returning updated_at::text stamp`,
+      );
+      const stamp = (inserted.rows[0] as { stamp: string }).stamp;
+      const write = (quantity: number, at: string) =>
+        asUser(
+          customer,
+          `update public.shopping_state set lines='[{"variantId":"30000000-0000-4000-8000-000000000001","quantity":${quantity}}]',updated_at='${at}' where user_id='${customer}' and updated_at='${stamp}' returning user_id`,
+        );
+      expect((await write(1, '2026-10-05T10:00:01.000Z')).rows).toHaveLength(1);
+      // The second device read the same updated_at, so its write matches nothing and it must retry.
+      expect((await write(2, '2026-10-05T10:00:02.000Z')).rows).toHaveLength(0);
+      const saved = await asUser(
+        customer,
+        `select lines from public.shopping_state where user_id='${customer}'`,
+      );
+      expect(saved.rows).toEqual([
+        { lines: [{ variantId: '30000000-0000-4000-8000-000000000001', quantity: 1 }] },
+      ]);
+    } finally {
+      await db.exec(`delete from public.shopping_state where user_id='${customer}'`);
+    }
+  });
   it('publishes shopping_state to Realtime once the publication exists', async () => {
     const sql = await readFile('supabase/migrations/202610050002_shopping_realtime.sql', 'utf8');
     await db.exec('create publication supabase_realtime');
