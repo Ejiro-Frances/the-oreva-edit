@@ -17,10 +17,13 @@ vi.mock('@supabase/supabase-js', () => ({
 }));
 
 import { requestSession } from '@/lib/supabase/server';
+import { siteUrl } from '@/lib/config';
 
+// sameOrigin compares against NEXT_PUBLIC_SITE_URL, which differs between local runs and CI.
+const origin = new URL(siteUrl).origin;
 const token = 'header.payload.signature';
 const request = (headers: Record<string, string> = {}) =>
-  new Request('http://localhost:3000/api/shopping', { method: 'PATCH', headers });
+  new Request(`${origin}/api/shopping`, { method: 'PATCH', headers });
 
 beforeEach(() => {
   vi.stubEnv('NEXT_PUBLIC_SUPABASE_URL', 'https://project.supabase.co');
@@ -78,7 +81,7 @@ describe('requestSession', () => {
     await expect(requestSession(request(), { mutation: true })).rejects.toMatchObject({
       status: 403,
     });
-    const session = await requestSession(request({ Origin: 'http://localhost:3000' }), {
+    const session = await requestSession(request({ Origin: origin }), {
       mutation: true,
     });
     expect(session).toMatchObject({ mode: 'cookie', user: { id: 'cookie-user' } });
