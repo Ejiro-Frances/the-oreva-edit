@@ -3,6 +3,8 @@ import { createContext, useContext, useEffect, useState, useCallback } from 'rea
 import { z } from 'zod';
 import { cartSchema } from '@/lib/validation';
 import type { CartLine } from '@/features/catalogue/types';
+import type { ShoppingOp } from './ops';
+import { subscribeToShopping } from './live';
 type ShoppingContext = {
   lines: CartLine[];
   wishlist: string[];
@@ -16,14 +18,17 @@ type ShoppingContext = {
   setBagOpen: (open: boolean) => void;
   notify: (message: string) => void;
 };
+type Remote = { lines: CartLine[]; wishlist: string[] };
 const Context = createContext<ShoppingContext | null>(null);
+const plain = (remote: Remote) =>
+  remote.lines.map(({ variantId, quantity }) => ({ variantId, quantity }));
 export function ShoppingProvider({ children }: { children: React.ReactNode }) {
   const [lines, setLines] = useState<CartLine[]>([]);
   const [wishlist, setWishlist] = useState<string[]>([]);
   const [ready, setReady] = useState(false);
   const [notice, setNotice] = useState('');
   const [bagOpen, setBagOpen] = useState(false);
-  const [signedIn, setSignedIn] = useState(false);
+  const [userId, setUserId] = useState<string | null>(null);
   const notify = useCallback((message: string) => setNotice(message), []);
   useEffect(() => {
     let active = true;
@@ -48,12 +53,10 @@ export function ShoppingProvider({ children }: { children: React.ReactNode }) {
         });
         if (response.ok) {
           const data = await response.json();
-          if (active) {
-            setSignedIn(data.signedIn);
-            if (data.signedIn) {
-              localLines = data.lines;
-              localWishlist = data.wishlist;
-            }
+          if (active && data.signedIn) {
+            setUserId(data.userId);
+            localLines = data.lines;
+            localWishlist = data.wishlist;
           }
         }
       } catch {
@@ -78,37 +81,94 @@ export function ShoppingProvider({ children }: { children: React.ReactNode }) {
     } catch {
       /* Session remains usable without storage. */
     }
-    if (!signedIn) return;
-    const timer = setTimeout(() => {
-      fetch('/api/shopping', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ action: 'save', lines, wishlist }),
-      })
-        .then((r) => {
-          if (!r.ok)
-            setNotice('Your changes are saved on this device. Account sync is unavailable.');
-        })
-        .catch(() =>
-          setNotice('Your changes are saved on this device. Account sync is unavailable.'),
-        );
-    }, 400);
-    return () => clearTimeout(timer);
-  }, [lines, wishlist, ready, signedIn]);
+  }, [lines, wishlist, ready]);
+  const refresh = useCallback(async () => {
+    try {
+      const response = await fetch('/api/shopping', { cache: 'no-store' });
+      if (!response.ok) return;
+      const data = await response.json();
+      if (!data.signedIn) return;
+      setLines(plain(data));
+      setWishlist(data.wishlist);
+    } catch {
+      /* The next event or visit refreshes again. */
+    }
+  }, []);
+  useEffect(() => {
+    if (!userId) return;
+    let active = true;
+    let stop = () => {};
+    void subscribeToShopping(userId, () => void refresh()).then((unsubscribe) => {
+      if (active) stop = unsubscribe;
+      else unsubscribe();
+    });
+    const onVisible = () => {
+      if (document.visibilityState === 'visible') void refresh();
+    };
+    document.addEventListener('visibilitychange', onVisible);
+    return () => {
+      active = false;
+      stop();
+      document.removeEventListener('visibilitychange', onVisible);
+    };
+  }, [userId, refresh]);
   useEffect(() => {
     if (!notice) return;
     const timer = setTimeout(() => setNotice(''), 5000);
     return () => clearTimeout(timer);
   }, [notice]);
+  /** Saves a change to the account; the optimistic local state is restored if it is refused. */
+  const send = (ops: ShoppingOp[]) => {
+    if (!userId) return;
+    const previous = { lines, wishlist };
+    fetch('/api/shopping', {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ ops }),
+    })
+      .then(async (response) => {
+        if (!response.ok) throw new Error('Rejected');
+        const data = await response.json();
+        setLines(plain(data));
+        setWishlist(data.wishlist);
+        if (data.adjusted.length) setNotice('Quantity updated to what’s in stock');
+      })
+      .catch(() => {
+        setLines(previous.lines);
+        setWishlist(previous.wishlist);
+        setNotice('Your bag could not be updated. Please try again.');
+      });
+  };
   const add = (id: string, quantity: number, stock: number) => {
     const previous = lines.find((l) => l.variantId === id)?.quantity || 0;
     if (!ready || quantity < 1 || previous + quantity > Math.min(stock, 20)) return false;
-    setLines((current) => [
-      ...current.filter((l) => l.variantId !== id),
+    setLines([
+      ...lines.filter((l) => l.variantId !== id),
       { variantId: id, quantity: previous + quantity },
     ]);
+    send([{ op: 'add', variantId: id, quantity }]);
     setBagOpen(true);
     return true;
+  };
+  const update = (id: string, quantity: number) => {
+    if (quantity <= 0) {
+      setLines(lines.filter((l) => l.variantId !== id));
+      send([{ op: 'remove', variantId: id }]);
+      return;
+    }
+    const capped = Math.min(20, quantity);
+    setLines(lines.map((l) => (l.variantId === id ? { ...l, quantity: capped } : l)));
+    send([{ op: 'set', variantId: id, quantity: capped }]);
+  };
+  const clear = () => {
+    if (lines.length) send(lines.map((l) => ({ op: 'remove' as const, variantId: l.variantId })));
+    setLines([]);
+  };
+  const toggle = (id: string) => {
+    const saved = wishlist.includes(id);
+    setWishlist(saved ? wishlist.filter((x) => x !== id) : [...wishlist, id]);
+    send([{ op: saved ? 'unwish' : 'wish', productId: id }]);
+    setNotice(saved ? 'Removed from your wishlist' : 'Saved to your wishlist');
   };
   return (
     <Context.Provider
@@ -118,21 +178,9 @@ export function ShoppingProvider({ children }: { children: React.ReactNode }) {
         ready,
         notice,
         add,
-        update: (id, q) =>
-          setLines((current) =>
-            q <= 0
-              ? current.filter((l) => l.variantId !== id)
-              : current.map((l) => (l.variantId === id ? { ...l, quantity: Math.min(20, q) } : l)),
-          ),
-        clear: () => setLines([]),
-        toggle: (id) => {
-          setWishlist((current) =>
-            current.includes(id) ? current.filter((x) => x !== id) : [...current, id],
-          );
-          setNotice(
-            wishlist.includes(id) ? 'Removed from your wishlist' : 'Saved to your wishlist',
-          );
-        },
+        update,
+        clear,
+        toggle,
         bagOpen,
         setBagOpen,
         notify,
