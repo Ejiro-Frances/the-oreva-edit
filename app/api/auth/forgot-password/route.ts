@@ -6,7 +6,7 @@ export async function POST(request: Request) {
   try {
     sameOrigin(request);
     const { email } = emailOnlySchema.parse(await readJson(request));
-    await rateLimit(`forgot-password:${clientIp(request)}`, 5, 600);
+    await rateLimit(`forgot-password:${clientIp(request)}`, 10, 600);
     const { error } = await (
       await authClient()
     ).auth.resetPasswordForEmail(email, {

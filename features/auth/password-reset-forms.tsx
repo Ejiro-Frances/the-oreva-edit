@@ -6,8 +6,10 @@ import { Field } from '@/components/ui/field';
 import { emailOnlySchema, newPasswordSchema } from '@/lib/validation';
 import { PasswordInput } from './password-input';
 import { postJson } from './post-json';
+import { useHydrated } from './use-hydrated';
 
 export function ForgotPasswordForm() {
+  const hydrated = useHydrated();
   const [error, setError] = useState('');
   const [sent, setSent] = useState(false);
   const [busy, setBusy] = useState(false);
@@ -44,7 +46,7 @@ export function ForgotPasswordForm() {
           aria-describedby={error ? 'email-error' : undefined}
         />
       </Field>
-      <button className="button full" disabled={busy}>
+      <button className="button full" disabled={busy || !hydrated}>
         {busy ? 'Sending…' : 'Send reset link'}
       </button>
     </form>
@@ -52,6 +54,7 @@ export function ForgotPasswordForm() {
 }
 
 export function ResetPasswordForm() {
+  const hydrated = useHydrated();
   const router = useRouter();
   const [error, setError] = useState('');
   const [expired, setExpired] = useState(false);
@@ -92,7 +95,7 @@ export function ResetPasswordForm() {
           Send a new link
         </Link>
       )}
-      <button className="button full" disabled={busy}>
+      <button className="button full" disabled={busy || !hydrated}>
         {busy ? 'Saving…' : 'Save new password'}
       </button>
     </form>

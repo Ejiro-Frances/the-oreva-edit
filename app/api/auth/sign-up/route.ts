@@ -6,7 +6,8 @@ export async function POST(request: Request) {
   try {
     sameOrigin(request);
     const input = signUpSchema.parse(await readJson(request));
-    await rateLimit('sign-up:' + clientIp(request), 5, 600);
+    // Generous per IP: Nigerian mobile carriers put many customers behind one shared address.
+    await rateLimit('sign-up:' + clientIp(request), 20, 600);
     const db = await authClient();
     const { data, error } = await db.auth.signUp({
       email: input.email,

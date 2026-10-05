@@ -1,5 +1,6 @@
 import 'server-only';
-import type { AuthError } from '@supabase/supabase-js';
+import { randomBytes } from 'node:crypto';
+import type { AuthError, SupabaseClient, User } from '@supabase/supabase-js';
 import { privilegedClient, sessionClient } from '@/lib/supabase/server';
 import { AppError } from '@/lib/security';
 import { siteUrl } from '@/lib/config';
@@ -47,4 +48,33 @@ export async function markEmailVerified(userId: string) {
     .eq('id', userId)
     .is('email_verified_at', null);
   if (error) console.error(JSON.stringify({ event: 'email_verify_save_failed' }));
+}
+
+/**
+ * Runs after a successful Google sign-in. "Confirm email" is off, so anyone could have
+ * created a password account for this address before its owner arrived, and Supabase then
+ * links Google to it (pre-account takeover). Google has now proved ownership: if the
+ * address was never verified, the password nobody proved is replaced and every other
+ * session is ended before the account is marked verified. Throws if that cannot be done,
+ * so the caller refuses the sign-in rather than leave the account shared.
+ */
+export async function claimAccountWithGoogle(user: User, session: SupabaseClient) {
+  const admin = privilegedClient();
+  const { data: profile, error } = await admin
+    .from('profiles')
+    .select('email_verified_at')
+    .eq('id', user.id)
+    .maybeSingle();
+  if (error) throw new Error('Could not read account verification');
+  const hasPassword = user.identities?.some((identity) => identity.provider === 'email');
+  if (!profile?.email_verified_at && hasPassword) {
+    const revoked = await admin.auth.admin.updateUserById(user.id, {
+      password: randomBytes(32).toString('base64url'),
+    });
+    if (revoked.error) throw new Error('Could not remove unverified password');
+    const ended = await session.auth.signOut({ scope: 'others' });
+    if (ended.error) throw new Error('Could not end other sessions');
+    console.info(JSON.stringify({ event: 'unverified_password_revoked' }));
+  }
+  await markEmailVerified(user.id);
 }

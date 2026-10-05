@@ -1,9 +1,11 @@
 'use client';
 import { useEffect, useState } from 'react';
 import { postJson } from '@/features/auth/post-json';
+import { useHydrated } from '@/features/auth/use-hydrated';
 const COOLDOWN = 60;
 /** Non-blocking reminder for accounts whose email hasn't been proven yet. */
 export function VerifyEmailBanner({ email }: { email: string }) {
+  const hydrated = useHydrated();
   const [status, setStatus] = useState<'idle' | 'sending' | 'sent' | 'error'>('idle');
   const [message, setMessage] = useState('');
   const [wait, setWait] = useState(0);
@@ -36,7 +38,7 @@ export function VerifyEmailBanner({ email }: { email: string }) {
         type="button"
         className="button button-outline"
         onClick={send}
-        disabled={status === 'sending' || wait > 0}
+        disabled={!hydrated || status === 'sending' || wait > 0}
       >
         {status === 'sending'
           ? 'Sending…'
