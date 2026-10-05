@@ -311,6 +311,16 @@ describe('Administrator publishing and moderation', () => {
       asUser(customer, 'update public.profiles set email_verified_at=now()'),
     ).rejects.toThrow('permission denied');
   });
+  it('publishes shopping_state to Realtime once the publication exists', async () => {
+    const sql = await readFile('supabase/migrations/202610050002_shopping_realtime.sql', 'utf8');
+    await db.exec('create publication supabase_realtime');
+    await db.exec(sql);
+    await db.exec(sql);
+    const tables = await db.query<{ tablename: string }>(
+      "select tablename from pg_publication_tables where pubname='supabase_realtime'",
+    );
+    expect(tables.rows).toEqual([{ tablename: 'shopping_state' }]);
+  });
 });
 
 describe('Order cancellation and restocking', () => {
