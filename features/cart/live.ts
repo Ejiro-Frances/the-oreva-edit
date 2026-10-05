@@ -9,8 +9,10 @@ export async function subscribeToShopping(userId: string, onChange: () => void) 
   if (!data.session) return () => {};
   // Without the customer's token Realtime applies RLS as anonymous and delivers nothing.
   await supabase.realtime.setAuth(data.session.access_token);
+  // A unique topic per subscription: realtime-js reuses a channel by topic, so StrictMode's double
+  // effect run could otherwise resubscribe a channel that is still closing. The filter scopes events.
   const channel = supabase
-    .channel(`shopping:${userId}`)
+    .channel(`shopping:${userId}:${crypto.randomUUID()}`)
     .on(
       'postgres_changes',
       { event: '*', schema: 'public', table: 'shopping_state', filter: `user_id=eq.${userId}` },
