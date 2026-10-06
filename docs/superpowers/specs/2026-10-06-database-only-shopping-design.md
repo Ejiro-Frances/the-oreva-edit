@@ -12,7 +12,11 @@ Reasons: the owner wants one source of truth, and wants a signed-out shared comp
 
 ## Behaviour
 
-- A guest's bag and wishlist survive reloads and closing the browser or app, because they are in the database. Clearing cookies (web) or reinstalling (app) starts an empty guest bag.
+- A guest's bag and wishlist survive reloads and closing the browser or app, because they are in the database.
+- A new guest bag starts when the guest identifier is lost:
+  - **Web:** clearing cookies.
+  - **Android:** reinstalling the app, because app data is wiped on uninstall.
+  - **iOS:** the keychain keeps the guest token across an uninstall, so a reinstalled app gets the same guest bag back for as long as the server keeps it (30 days after its last change). The owner chose this behaviour on 6 October 2026.
 - When a guest signs in, their guest bag and wishlist move into the account (same merge rule as today: union, larger quantity per variant, caps). The guest row is then deleted.
 - Signing out shows an empty guest bag. The account's items stay in the account.
 - Guest checkout keeps working. The bag it reads comes from the server.
