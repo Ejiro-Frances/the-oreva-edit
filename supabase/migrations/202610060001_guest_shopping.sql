@@ -10,4 +10,6 @@ create table public.guest_shopping_state (
   updated_at timestamptz not null default now()
 );
 alter table public.guest_shopping_state enable row level security;
+revoke all on public.guest_shopping_state from anon,authenticated;
+grant select,insert,update,delete on public.guest_shopping_state to service_role;
 create index guest_shopping_state_updated_at on public.guest_shopping_state (updated_at);
