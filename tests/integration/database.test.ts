@@ -135,6 +135,46 @@ describe('PostgreSQL schema, transactions and RLS', () => {
       ),
     ).rejects.toThrow('cycle');
   });
+  it('keeps guest bags away from browsers', async () => {
+    // Assert revokes hold via the catalog.
+    const privileges = await db.query<{ a: boolean; b: boolean }>(
+      "select has_table_privilege('anon','public.guest_shopping_state','select') as a, has_table_privilege('authenticated','public.guest_shopping_state','insert') as b",
+    );
+    expect(privileges.rows[0]).toEqual({ a: false, b: false });
+    const rls = await db.query<{ relrowsecurity: boolean }>(
+      "select relrowsecurity from pg_class where oid = 'public.guest_shopping_state'::regclass",
+    );
+    expect(rls.rows[0].relrowsecurity).toBe(true);
+    // Prove RLS works independently of grants: temporarily grant, test RLS blocks, revoke.
+    const hash = 'a'.repeat(64);
+    await db.query(`insert into public.guest_shopping_state(guest_hash, lines) values ($1, '[]')`, [
+      hash,
+    ]);
+    await db.exec('grant select, insert on public.guest_shopping_state to authenticated');
+    try {
+      await db.exec('set role authenticated');
+      try {
+        const visible = await db
+          .query('select guest_hash from public.guest_shopping_state')
+          .then((r) => r.rows.length);
+        expect(visible).toBe(0);
+        await expect(
+          db.query(`insert into public.guest_shopping_state(guest_hash) values ($1)`, [
+            'b'.repeat(64),
+          ]),
+        ).rejects.toThrow(/row-level security/i);
+      } finally {
+        await db.exec('reset role');
+      }
+    } finally {
+      await db.exec('revoke select, insert on public.guest_shopping_state from authenticated');
+    }
+    // Hash format validation.
+    await expect(
+      db.query(`insert into public.guest_shopping_state(guest_hash) values ('not-a-hash')`),
+    ).rejects.toThrow();
+    await db.query('delete from public.guest_shopping_state');
+  });
   it('requires administrator role and valid fulfilment sequence', async () => {
     const { rows } = await db.query<{ id: string }>('select id from public.orders limit 1');
     await expect(

@@ -1,23 +1,11 @@
-import { timingSafeEqual } from 'node:crypto';
 import { privilegedClient } from '@/lib/supabase/server';
 import { processOutbox } from '@/lib/email/outbox';
-import { apiError, AppError } from '@/lib/security';
-
-function authorise(request: Request) {
-  const expected = process.env.CRON_SECRET;
-  const actual = request.headers.get('authorization')?.replace(/^Bearer /, '');
-  if (
-    !expected ||
-    !actual ||
-    expected.length !== actual.length ||
-    !timingSafeEqual(Buffer.from(expected), Buffer.from(actual))
-  )
-    throw new AppError('Unauthorised', 401);
-}
+import { apiError } from '@/lib/security';
+import { authoriseCron } from '@/lib/cron';
 
 async function run(request: Request) {
   try {
-    authorise(request);
+    authoriseCron(request);
     return Response.json(await processOutbox(privilegedClient()));
   } catch (error) {
     return apiError(error);

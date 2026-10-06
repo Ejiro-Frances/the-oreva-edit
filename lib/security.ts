@@ -65,3 +65,13 @@ export function safeRedirect(value: string | null) {
     ? value
     : '/account';
 }
+
+const GUEST_TOKEN = /^[0-9a-f]{64}$/;
+export const isGuestToken = (value: string | null | undefined): value is string =>
+  !!value && GUEST_TOKEN.test(value);
+
+/** The app's guest identifier. Browsers cannot attach this header cross-site without CORS. */
+export function guestHeaderToken(request: Request) {
+  const value = request.headers.get('x-guest-token');
+  return isGuestToken(value) ? value : null;
+}

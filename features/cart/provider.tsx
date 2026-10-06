@@ -1,5 +1,5 @@
 'use client';
-import { createContext, useContext, useEffect, useRef, useState, useCallback } from 'react';
+import { createContext, useContext, useEffect, useState, useCallback, useRef } from 'react';
 import { z } from 'zod';
 import { cartSchema } from '@/lib/validation';
 import type { CartLine } from '@/features/catalogue/types';
@@ -20,19 +20,38 @@ type ShoppingContext = {
 };
 type Remote = { lines: CartLine[]; wishlist: string[] };
 const Context = createContext<ShoppingContext | null>(null);
-const BAG_KEY = 'oreva-bag-v1';
-const WISHLIST_KEY = 'oreva-wishlist-v1';
-/** Present when the stored bag mirrors an account rather than a guest's own choices. */
-const OWNER_KEY = 'oreva-bag-owner';
+/** Keys from when the bag lived in the browser; read once to hand over, then deleted. */
+const LEGACY_KEYS = {
+  bag: 'oreva-bag-v1',
+  wishlist: 'oreva-wishlist-v1',
+  owner: 'oreva-bag-owner',
+};
 const plain = (remote: Remote) =>
   remote.lines.map(({ variantId, quantity }) => ({ variantId, quantity }));
-function forgetOwner() {
+
+/** A guest bag left in localStorage by an older version; an account's copy is not uploaded. */
+function readLegacy(): Remote {
   try {
-    localStorage.removeItem(OWNER_KEY);
+    if (localStorage.getItem(LEGACY_KEYS.owner)) return { lines: [], wishlist: [] };
+    return {
+      lines: cartSchema.parse(JSON.parse(localStorage.getItem(LEGACY_KEYS.bag) || '[]')),
+      wishlist: z
+        .array(z.uuid())
+        .max(500)
+        .parse(JSON.parse(localStorage.getItem(LEGACY_KEYS.wishlist) || '[]')),
+    };
   } catch {
-    /* Storage unavailable: nothing to forget. */
+    return { lines: [], wishlist: [] };
   }
 }
+function forgetLegacy() {
+  try {
+    for (const key of Object.values(LEGACY_KEYS)) localStorage.removeItem(key);
+  } catch {
+    /* Storage unavailable: nothing to remove. */
+  }
+}
+
 export function ShoppingProvider({ children }: { children: React.ReactNode }) {
   const [lines, setLines] = useState<CartLine[]>([]);
   const [wishlist, setWishlist] = useState<string[]>([]);
@@ -48,88 +67,75 @@ export function ShoppingProvider({ children }: { children: React.ReactNode }) {
   useEffect(() => {
     committed.current = { lines, wishlist };
   }, [lines, wishlist]);
-  useEffect(() => {
-    let active = true;
-    let localLines: CartLine[] = [];
-    let localWishlist: string[] = [];
-    let owned = false;
-    try {
-      owned = Boolean(localStorage.getItem(OWNER_KEY));
-      localLines = cartSchema.parse(JSON.parse(localStorage.getItem(BAG_KEY) || '[]'));
-      localWishlist = z
-        .array(z.uuid())
-        .max(500)
-        .parse(JSON.parse(localStorage.getItem(WISHLIST_KEY) || '[]'));
-    } catch {
-      /* Corrupt or unavailable storage starts empty. */
-    }
-    async function restore() {
-      try {
-        // A copy of an account's bag is not merged back: the account may have changed since on
-        // another device, and merging keeps the larger quantity, undoing those removals.
-        const response = await fetch('/api/shopping', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            action: 'merge',
-            lines: owned ? [] : localLines,
-            wishlist: owned ? [] : localWishlist,
-          }),
-          signal: AbortSignal.timeout(8000),
-        });
-        if (response.ok) {
-          const data = await response.json();
-          if (active && data.signedIn) {
-            setUserId(data.userId);
-            localLines = data.lines;
-            localWishlist = data.wishlist;
-          } else if (active && data.signedIn === false) {
-            // Signed out: the device keeps these choices as its own guest bag.
-            forgetOwner();
-          }
-        }
-      } catch {
-        /* Guest shopping remains usable while the network is unavailable. */
-      }
-      if (active) {
-        setLines(localLines);
-        setWishlist(localWishlist);
-        setReady(true);
-      }
-    }
-    void restore();
-    return () => {
-      active = false;
-    };
+  /** The signed-in customer whose bag is shown, readable inside async replies. */
+  const shownUser = useRef<string | null>(null);
+  /**
+   * Shows a bag the server returned (customer or guest). A guest reply while a customer's bag was
+   * shown means the session ended (for example signed out in another tab): the cookie request
+   * was served as a guest instead of failing, so say so rather than switching bags silently.
+   */
+  const adopt = useCallback((data: Remote & { signedIn?: boolean; userId?: string }) => {
+    const next = data.signedIn && data.userId ? data.userId : null;
+    if (shownUser.current && !next) setNotice('You were signed out.');
+    shownUser.current = next;
+    setLines(plain(data));
+    setWishlist(data.wishlist);
+    setUserId(next);
   }, []);
-  useEffect(() => {
-    if (!ready) return;
-    try {
-      localStorage.setItem(BAG_KEY, JSON.stringify(lines));
-      localStorage.setItem(WISHLIST_KEY, JSON.stringify(wishlist));
-      if (userId) localStorage.setItem(OWNER_KEY, userId);
-    } catch {
-      /* Session remains usable without storage. */
-    }
-  }, [lines, wishlist, ready, userId]);
-  /** Adopts the account's bag. Resolves false when it could not be read. */
+  /** Shows the server's bag. Resolves false when it could not be read. */
   const refresh = useCallback(async () => {
     const request = ++sequence.current;
     try {
       const response = await fetch('/api/shopping', { cache: 'no-store' });
       if (!response.ok) return false;
       const data = await response.json();
-      if (!data.signedIn) return false;
-      if (request === sequence.current) {
-        setLines(plain(data));
-        setWishlist(data.wishlist);
-      }
+      if (request === sequence.current) adopt(data);
       return true;
     } catch {
-      /* The next event or visit refreshes again. */
       return false;
     }
-  }, []);
+  }, [adopt]);
+  useEffect(() => {
+    let active = true;
+    const legacy = readLegacy();
+    /** Settles the bag on the server; false when the merge did not succeed. */
+    async function merge() {
+      try {
+        // A customer absorbs their guest bag, and any bag an older version left in this browser
+        // is handed over once.
+        const response = await fetch('/api/shopping', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ action: 'merge', ...legacy }),
+          signal: AbortSignal.timeout(8000),
+        });
+        if (!response.ok) return false;
+        forgetLegacy();
+        const data = await response.json();
+        if (active) adopt(data);
+        return true;
+      } catch {
+        return false;
+      }
+    }
+    async function restore() {
+      // If the merge fails, still show the bag already saved; the merge is retried next load.
+      if (!(await merge()) && active && !(await refresh()) && active)
+        setNotice('Your bag could not be loaded. Please refresh the page.');
+      if (active) setReady(true);
+    }
+    void restore();
+    return () => {
+      active = false;
+    };
+  }, [adopt, refresh]);
+  useEffect(() => {
+    const onVisible = () => {
+      if (document.visibilityState === 'visible') void refresh();
+    };
+    document.addEventListener('visibilitychange', onVisible);
+    return () => document.removeEventListener('visibilitychange', onVisible);
+  }, [refresh]);
   useEffect(() => {
     if (!userId) return;
     let active = true;
@@ -138,14 +144,9 @@ export function ShoppingProvider({ children }: { children: React.ReactNode }) {
       if (active) stop = unsubscribe;
       else unsubscribe();
     });
-    const onVisible = () => {
-      if (document.visibilityState === 'visible') void refresh();
-    };
-    document.addEventListener('visibilitychange', onVisible);
     return () => {
       active = false;
       stop();
-      document.removeEventListener('visibilitychange', onVisible);
     };
   }, [userId, refresh]);
   useEffect(() => {
@@ -154,11 +155,10 @@ export function ShoppingProvider({ children }: { children: React.ReactNode }) {
     return () => clearTimeout(timer);
   }, [notice]);
   /**
-   * Saves a change to the account. If it is refused the account's bag is fetched and shown; if
-   * that fails too, the bag from before the change is restored.
+   * Saves a change (customer or guest). If it is refused the server's bag is fetched and shown;
+   * if that fails too, the bag from before the change is restored.
    */
   const send = (ops: ShoppingOp[]) => {
-    if (!userId) return;
     const previous = committed.current;
     const request = ++sequence.current;
     fetch('/api/shopping', {
@@ -168,18 +168,19 @@ export function ShoppingProvider({ children }: { children: React.ReactNode }) {
     })
       .then(async (response) => {
         if (response.status === 401) {
-          // The session ended elsewhere: keep the change on this device as a guest bag.
-          forgetOwner();
+          // A rejected session (bearer-style): show this browser's guest bag instead.
+          shownUser.current = null;
           setUserId(null);
-          setNotice('You were signed out. Your bag is saved on this device.');
+          setNotice('You were signed out.');
+          await refresh();
           return;
         }
         if (!response.ok) throw new Error('Rejected');
         const data = await response.json();
         if (request !== sequence.current) return;
-        setLines(plain(data));
-        setWishlist(data.wishlist);
         if (data.adjusted?.length) setNotice('Quantity updated to what’s in stock');
+        // Adopted last so a "signed out" notice wins over the stock notice.
+        adopt(data);
       })
       .catch(async () => {
         setNotice('Your bag could not be updated. Please try again.');
@@ -203,6 +204,7 @@ export function ShoppingProvider({ children }: { children: React.ReactNode }) {
     });
     send([{ op: 'add', variantId: id, quantity }]);
     setBagOpen(true);
+    setNotice('Added to your bag');
     return true;
   };
   const update = (id: string, quantity: number) => {

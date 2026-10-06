@@ -16,7 +16,7 @@ The design combines photographic storytelling with compact shopping controls: an
 6. **Authorization:** separate user_roles table; server admin guard on every mutation plus database RLS. No role stored in editable profile metadata.
 7. **Catalogue:** data-managed hierarchical categories, audiences, tags, collections, draft/active/archived products, images and configurable variant attribute maps.
 8. **Inventory:** variant quantities; locked, atomic database order operation checks active products and decrements inventory. No client price accepted.
-9. **Cart:** bounded, validated guest local storage; authenticated cart persistence through owned rows. Merge variant quantities, cap against current availability, report adjustments.
+9. **Cart:** bounded, validated server-side bags for everyone — customers in owned `shopping_state` rows, guests in server-only `guest_shopping_state` rows identified by the HttpOnly `oreva_guest` cookie (web) or `X-Guest-Token` (app); line operations with stock caps and a conditional write; nothing stored on the device. Merge variant quantities, cap against current availability, report adjustments.
 10. **Checkout:** shared Zod schema and React Hook Form; Nigerian delivery fields; server pricing and delivery lookup. Explicit test order mode only; no card fields or paid claims.
 11. **Orders:** human-friendly reference plus UUID; independent order/payment/fulfilment states. Guest access via cryptographically random secret, stored hashed; owners via session.
 12. **Email:** server-only Mailgun adapter and development capture; transactional outbox separates order commit from delivery failure. HTML escaped and plaintext included.

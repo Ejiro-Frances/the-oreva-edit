@@ -3,7 +3,7 @@ import { createServerClient } from '@supabase/ssr';
 import { createClient, type SupabaseClient, type User } from '@supabase/supabase-js';
 import { cookies } from 'next/headers';
 import { authConfigured } from '@/lib/config';
-import { AppError, sameOrigin } from '@/lib/security';
+import { AppError, guestHeaderToken, sameOrigin } from '@/lib/security';
 
 export async function sessionClient() {
   if (!authConfigured()) return null;
@@ -70,13 +70,19 @@ const expired = () => new AppError('Please sign in again.', 401, 'session_expire
  * Identifies the caller of an API route. The mobile app sends `Authorization: Bearer <access
  * token>` and is never read from cookies. Browsers use the cookie session and, for mutations,
  * must pass the same-origin check; bearer requests skip it because a browser cannot attach that
- * header to a cross-site request on its own.
+ * header to a cross-site request on its own. A request with a valid X-Guest-Token (the app's
+ * guests) and no Authorization header is always a guest: its cookies are never read, so a
+ * cross-site page cannot use that header to act on a signed-in browser session.
  */
 export async function requestSession(
   request: Request,
   { mutation = false }: { mutation?: boolean } = {},
 ): Promise<RequestSession | null> {
   const header = request.headers.get('authorization');
+  if (header === null && guestHeaderToken(request)) {
+    const db = await sessionClient();
+    return db ? { db, user: null, mode: 'cookie' } : null;
+  }
   if (header === null) {
     if (mutation) sameOrigin(request);
     const db = await sessionClient();

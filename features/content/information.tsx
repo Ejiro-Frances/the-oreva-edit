@@ -124,8 +124,8 @@ export const information: Record<
         'Information is used to manage accounts, provide requested shopping services, fulfil orders and respond to support and security issues. We use Supabase for hosting, authentication and storage, Mailgun for order emails, our hosting provider, and delivery partners who need your delivery details to bring your order to you.',
       ],
       [
-        'Cookies and local storage',
-        'Essential authentication cookies maintain your session. An HttpOnly guest cookie protects access to guest orders. Bag and wishlist choices use local storage on your device and sync to your account when signed in. There are no optional analytics or advertising scripts, and no optional tracking is pre-enabled. Clearing storage may remove guest shopping choices and guest order access.',
+        'Cookies',
+        'Essential authentication cookies maintain your session. An HttpOnly guest cookie protects access to guest orders and identifies a guest’s bag and wishlist, which we store on our servers and delete after 30 days without changes. Signed-in bags and wishlists are saved to your account. There are no optional analytics or advertising scripts, and no optional tracking is pre-enabled. Clearing cookies starts a new guest bag and removes guest order access.',
       ],
       [
         'Your choices and rights',
