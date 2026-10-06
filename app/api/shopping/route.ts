@@ -85,6 +85,15 @@ export async function POST(request: Request) {
         // The account bag is still returned; the guest bag is merged on a later load.
         console.error(JSON.stringify({ event: 'guest_bag_read_failed' }));
       }
+      if (!guestRow && !hasBody) {
+        // Nothing to merge: skip the write so a plain launch or page load does not bump
+        // updated_at, fire Realtime events or race concurrent edits.
+        const row = await loadShoppingRow(session.db, session.user.id);
+        return Response.json(
+          { ...shoppingView(row, products), adjusted: [], userId: session.user.id },
+          noStore,
+        );
+      }
       const incoming = mergeCart(input.lines, guestRow?.lines ?? [], products);
       const view = await writeStore(userStore(session.db, session.user.id), products, (state) => ({
         lines: mergeCart(incoming, state.lines, products),

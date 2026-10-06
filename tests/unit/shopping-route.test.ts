@@ -134,6 +134,28 @@ describe('signing in with a guest bag', () => {
     expect(fake.row()?.lines).toEqual([{ variantId: variant.id, quantity: 2 }]);
   });
 
+  it('does not write when a sign-in has nothing to merge', async () => {
+    const fake = signedIn();
+    const response = await route.POST(call('POST', { action: 'merge' }));
+    expect(fake.writes()).toBe(0);
+    expect(response.headers.get('cache-control')).toBe('no-store');
+    expect(await response.json()).toMatchObject({
+      signedIn: true,
+      userId: 'user-1',
+      lines: [],
+      adjusted: [],
+    });
+  });
+
+  it('still merges and writes when a guest bag exists and the body is empty', async () => {
+    await route.PATCH(call('PATCH', add(variant.id), { 'X-Guest-Token': appToken }));
+    const fake = signedIn();
+    const before = fake.writes();
+    await route.POST(call('POST', { action: 'merge' }, { 'X-Guest-Token': appToken }));
+    expect(fake.writes()).toBeGreaterThan(before);
+    expect(fake.row()?.lines).toEqual([{ variantId: variant.id, quantity: 1 }]);
+  });
+
   it('also merges legacy lines sent in the body, keeping the larger quantity', async () => {
     const fake = signedIn();
     await route.POST(
