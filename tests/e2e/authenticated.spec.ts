@@ -1,7 +1,7 @@
 import { test, expect, type BrowserContext } from '@playwright/test';
 import { createClient } from '@supabase/supabase-js';
 import { createServerClient } from '@supabase/ssr';
-import { randomUUID } from 'node:crypto';
+import { createHash, randomUUID } from 'node:crypto';
 const enabled = process.env.E2E_SUPABASE === 'true';
 test.describe('Local Supabase customer and staff workflows', () => {
   test.skip(!enabled, 'Requires an isolated local Supabase stack; see docs/TESTING.md.');
@@ -160,5 +160,59 @@ test.describe('Local Supabase customer and staff workflows', () => {
       },
     });
     expect(response.status()).toBe(400);
+  });
+  test('guest bag is kept in the database and moves into the account on sign-in', async ({
+    page,
+    context,
+  }) => {
+    const sandM = '30000000-0000-4000-8000-000000000002';
+    await page.goto('/products/sade-midi-dress');
+    await page.getByRole('button', { name: 'Colour: Sand', exact: true }).click();
+    await page.getByRole('button', { name: 'Size: M', exact: true }).click();
+    await page.getByRole('button', { name: 'Add to bag', exact: true }).click();
+    await expect(page.getByRole('dialog', { name: 'Your shopping bag' })).toBeVisible();
+    // The guest row is keyed by the SHA-256 of the HttpOnly cookie; the token is never stored.
+    const guestCookie = async () =>
+      (await context.cookies()).find((c) => c.name === 'oreva_guest')?.value;
+    await expect.poll(guestCookie).toMatch(/^[0-9a-f]{64}$/);
+    const guestHash = createHash('sha256')
+      .update((await guestCookie())!)
+      .digest('hex');
+    const guestLines = async () => {
+      const { data, error } = await admin()
+        .from('guest_shopping_state')
+        .select('lines')
+        .eq('guest_hash', guestHash)
+        .maybeSingle();
+      if (error) throw error;
+      return data?.lines ?? null;
+    };
+    await expect.poll(guestLines).toEqual([{ variantId: sandM, quantity: 1 }]);
+    await page.reload();
+    await page.getByRole('button', { name: 'Open shopping bag, 1 items' }).click();
+    await expect(
+      page
+        .getByRole('dialog', { name: 'Your shopping bag' })
+        .getByRole('heading', { name: 'The Sade midi dress' }),
+    ).toBeVisible();
+    await signIn(context, customerEmail);
+    await page.goto('/');
+    await expect
+      .poll(async () => {
+        const { data } = await admin()
+          .from('shopping_state')
+          .select('lines')
+          .eq('user_id', customerId)
+          .maybeSingle();
+        return (data?.lines ?? []).map((l: { variantId: string }) => l.variantId);
+      })
+      .toContain(sandM);
+    await expect.poll(guestLines).toBeNull();
+    await page.getByRole('button', { name: /^Open shopping bag, \d+ items$/ }).click();
+    await expect(
+      page
+        .getByRole('dialog', { name: 'Your shopping bag' })
+        .getByRole('heading', { name: 'The Sade midi dress' }),
+    ).toBeVisible();
   });
 });
