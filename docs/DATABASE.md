@@ -6,7 +6,7 @@ Versioned migrations define the commerce schema and secured transactions. Run th
 
 - Identity: profiles, user_roles, addresses.
 - Catalogue: categories, products, product_variants, product_images, collections, collection_products.
-- Shopping: shopping_state (one owned document per customer) and guest_shopping_state (server-only, keyed by the SHA-256 of the guest token, deleted after 30 days unused). No shopping data is stored on the device.
+- Shopping: shopping_state (one owned document per customer) and guest_shopping_state (server-only, keyed by the SHA-256 of the guest token, deleted 30 days after the last change). No shopping data is stored on the device.
 - Commerce: delivery_zones, orders, order_items, payments, fulfilments, order_notes.
 - Operations: reviews, site_settings, email_outbox, admin_audit_logs, rate_limits.
 
@@ -24,7 +24,7 @@ save_product is admin-only and atomic. Existing products use updated_at optimist
 
 ## Cart sync
 
-Clients change the saved bag with PATCH /api/shopping line operations (`add`, `set`, `remove`, `wish`, `unwish`), never by replacing the document. The server re-reads the row, applies the operations with stock and 20-per-line caps, and writes only if `updated_at` is unchanged, retrying up to three times before answering 409 `cart_conflict`. Sign-in merges use the same conditional write. Guests use the same operations and conditional write against `guest_shopping_state`, and `POST merge` moves a guest bag into the account and deletes it. Capped or dropped variants are returned in `adjusted`.
+Clients change the saved bag with PATCH /api/shopping line operations (`add`, `set`, `remove`, `wish`, `unwish`), never by replacing the document. The server re-reads the row, applies the operations with stock and 20-per-line caps, and writes only if `updated_at` is unchanged, retrying up to three times before answering 409 `cart_conflict`. Sign-in merges use the same conditional write. Guests use the same operations and conditional write against `guest_shopping_state`, and `POST merge` moves a guest bag into the account and then deletes it only if it is unchanged since it was read (a guest change made meanwhile survives and is merged on the next load). Capped or dropped variants are returned in `adjusted`.
 
 `202610050002_shopping_realtime.sql` adds `shopping_state` to the `supabase_realtime` publication. RLS (`own_shopping`) limits events to the owner. Web and mobile subscribe with `user_id=eq.<uid>` and refetch GET /api/shopping on every event and when they return to the foreground.
 

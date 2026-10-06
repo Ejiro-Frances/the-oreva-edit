@@ -125,7 +125,7 @@ export const information: Record<
       ],
       [
         'Cookies',
-        'Essential authentication cookies maintain your session. An HttpOnly guest cookie protects access to guest orders and identifies a guest’s bag and wishlist, which we store on our servers and delete after 30 days without use. Signed-in bags and wishlists are saved to your account. There are no optional analytics or advertising scripts, and no optional tracking is pre-enabled. Clearing cookies starts a new guest bag and removes guest order access.',
+        'Essential authentication cookies maintain your session. An HttpOnly guest cookie protects access to guest orders and identifies a guest’s bag and wishlist, which we store on our servers and delete after 30 days without changes. Signed-in bags and wishlists are saved to your account. There are no optional analytics or advertising scripts, and no optional tracking is pre-enabled. Clearing cookies starts a new guest bag and removes guest order access.',
       ],
       [
         'Your choices and rights',
