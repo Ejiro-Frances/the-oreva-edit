@@ -192,10 +192,20 @@ describe('guest merge hardening', () => {
     expect(mocks.rateLimit).not.toHaveBeenCalled();
   });
 
-  it('sets no cookie for an empty guest merge', async () => {
+  it('gives a new guest a cookie on an empty merge without writing a row', async () => {
     const body = await (await route.POST(call('POST', { action: 'merge' }))).json();
     expect(body).toMatchObject({ signedIn: false, lines: [] });
-    expect(mocks.jar.set).not.toHaveBeenCalled();
+    expect(mocks.values.get('oreva_guest')).toMatch(/^[0-9a-f]{64}$/);
+    expect(mocks.jar.set).toHaveBeenCalledWith(
+      'oreva_guest',
+      expect.any(String),
+      expect.objectContaining({ httpOnly: true }),
+    );
+    const read = await (await route.GET(call('GET'))).json();
+    expect(read.lines).toEqual([]);
+    expect(
+      (globalThis as { __orevaGuestBags?: Map<string, unknown> }).__orevaGuestBags?.size ?? 0,
+    ).toBe(0);
     expect(mocks.rateLimit).not.toHaveBeenCalled();
   });
 

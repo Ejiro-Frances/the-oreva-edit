@@ -68,7 +68,8 @@ export async function POST(request: Request) {
     const products = await getProducts();
     const hasBody = input.lines.length > 0 || input.wishlist.length > 0;
     if (!session?.user && hasBody) await rateLimit(`guest-bag:${clientIp(request)}`, 120, 600);
-    const token = await guestToken(request, { create: !session?.user && hasBody });
+    // The first-load POST always gives a new guest its cookie, so concurrent first PATCHes share one bag.
+    const token = await guestToken(request, { create: !session?.user });
     if (session?.user) {
       const guest = token ? guestStore(token) : null;
       const guestRow = guest ? await guest.load() : null;
