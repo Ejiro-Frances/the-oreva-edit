@@ -47,6 +47,12 @@ export function fakeShoppingDb(
           }),
         }),
       }),
+      delete: () => ({
+        eq: async () => {
+          row = null;
+          return { error: null };
+        },
+      }),
       insert: (values: FakeRow) => ({
         select: async () => {
           interleave();
