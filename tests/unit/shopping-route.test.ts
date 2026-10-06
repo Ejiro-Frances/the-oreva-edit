@@ -161,3 +161,72 @@ describe('signing in with a guest bag', () => {
     ).toBe(400);
   });
 });
+
+describe('guest merge hardening', () => {
+  const legacy = { action: 'merge', lines: [{ variantId: variant.id, quantity: 1 }], wishlist: [] };
+  const limited = async () => {
+    const { AppError } = await import('@/lib/security');
+    mocks.rateLimit.mockRejectedValue(new AppError('Too many requests.', 429));
+  };
+
+  it('rate-limits guest POST merges that write, per IP', async () => {
+    await route.POST(call('POST', legacy, { 'X-Forwarded-For': '203.0.113.9' }));
+    expect(mocks.rateLimit).toHaveBeenCalledWith('guest-bag:203.0.113.9', 120, 600);
+  });
+
+  it('writes nothing when the limit is hit', async () => {
+    await limited();
+    const headers = { 'X-Guest-Token': appToken };
+    expect((await route.PATCH(call('PATCH', add(variant.id), headers))).status).toBe(429);
+    expect((await route.POST(call('POST', legacy, headers))).status).toBe(429);
+    mocks.rateLimit.mockResolvedValue(undefined);
+    const read = await (await route.GET(call('GET', undefined, headers))).json();
+    expect(read.lines).toEqual([]);
+    expect(mocks.jar.set).not.toHaveBeenCalled();
+  });
+
+  it('does not rate-limit signed-in customers', async () => {
+    signedIn();
+    await route.PATCH(call('PATCH', add(variant.id)));
+    await route.POST(call('POST', legacy));
+    expect(mocks.rateLimit).not.toHaveBeenCalled();
+  });
+
+  it('sets no cookie for an empty guest merge', async () => {
+    const body = await (await route.POST(call('POST', { action: 'merge' }))).json();
+    expect(body).toMatchObject({ signedIn: false, lines: [] });
+    expect(mocks.jar.set).not.toHaveBeenCalled();
+    expect(mocks.rateLimit).not.toHaveBeenCalled();
+  });
+
+  it('still succeeds when deleting the guest bag fails', async () => {
+    vi.resetModules();
+    vi.doMock('@/features/cart/guest-store', async () => {
+      const actual = await vi.importActual<typeof import('@/features/cart/guest-store')>(
+        '@/features/cart/guest-store',
+      );
+      return {
+        ...actual,
+        guestStore: (token: string) => ({
+          ...actual.guestStore(token),
+          remove: async () => {
+            throw new Error('db down');
+          },
+        }),
+      };
+    });
+    const failing = await import('@/app/api/shopping/route');
+    const log = vi.spyOn(console, 'error').mockImplementation(() => {});
+    await failing.PATCH(call('PATCH', add(variant.id, 2), { 'X-Guest-Token': appToken }));
+    const fake = signedIn();
+    const response = await failing.POST(
+      call('POST', { action: 'merge' }, { 'X-Guest-Token': appToken }),
+    );
+    vi.doUnmock('@/features/cart/guest-store');
+    expect(response.status).toBe(200);
+    expect(await response.json()).toMatchObject({ signedIn: true, userId: 'user-1' });
+    expect(fake.row()?.lines).toEqual([{ variantId: variant.id, quantity: 2 }]);
+    expect(log).toHaveBeenCalledWith(JSON.stringify({ event: 'guest_bag_delete_failed' }));
+    log.mockRestore();
+  });
+});

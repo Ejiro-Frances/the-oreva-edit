@@ -66,7 +66,9 @@ export async function POST(request: Request) {
     const session = await requestSession(request, { mutation: true });
     const input = mergeSchema.parse(await readJson(request));
     const products = await getProducts();
-    const token = await guestToken(request, { create: !session?.user });
+    const hasBody = input.lines.length > 0 || input.wishlist.length > 0;
+    if (!session?.user && hasBody) await rateLimit(`guest-bag:${clientIp(request)}`, 120, 600);
+    const token = await guestToken(request, { create: !session?.user && hasBody });
     if (session?.user) {
       const guest = token ? guestStore(token) : null;
       const guestRow = guest ? await guest.load() : null;
@@ -79,12 +81,21 @@ export async function POST(request: Request) {
         ),
         adjusted: [],
       }));
-      if (guest && guestRow) await guest.remove();
+      if (guest && guestRow) {
+        try {
+          await guest.remove();
+        } catch {
+          // The merge is committed and idempotent; the stale-guest cleanup removes the row later.
+          console.error(JSON.stringify({ event: 'guest_bag_delete_failed' }));
+        }
+      }
       return Response.json({ ...view, userId: session.user.id }, noStore);
     }
+    if (!hasBody) {
+      const row = token ? await guestStore(token).load() : null;
+      return Response.json(shoppingView(row, products, false), noStore);
+    }
     const store = guestStore(token!);
-    if (!input.lines.length && !input.wishlist.length)
-      return Response.json(shoppingView(await store.load(), products, false), noStore);
     const view = await writeStore(store, products, (state) => ({
       lines: mergeCart(input.lines, state.lines, products),
       wishlist: knownWishlist([...input.wishlist, ...state.wishlist], products),
