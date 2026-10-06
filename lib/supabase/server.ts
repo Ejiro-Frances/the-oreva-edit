@@ -3,7 +3,7 @@ import { createServerClient } from '@supabase/ssr';
 import { createClient, type SupabaseClient, type User } from '@supabase/supabase-js';
 import { cookies } from 'next/headers';
 import { authConfigured } from '@/lib/config';
-import { AppError, sameOrigin } from '@/lib/security';
+import { AppError, guestHeaderToken, sameOrigin } from '@/lib/security';
 
 export async function sessionClient() {
   if (!authConfigured()) return null;
@@ -78,7 +78,8 @@ export async function requestSession(
 ): Promise<RequestSession | null> {
   const header = request.headers.get('authorization');
   if (header === null) {
-    if (mutation) sameOrigin(request);
+    // App guests send X-Guest-Token; a cross-site page cannot add that header without CORS.
+    if (mutation && !guestHeaderToken(request)) sameOrigin(request);
     const db = await sessionClient();
     if (!db) return null;
     const { data } = await db.auth.getUser();

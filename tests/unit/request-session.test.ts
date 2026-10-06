@@ -87,6 +87,16 @@ describe('requestSession', () => {
     expect(session).toMatchObject({ mode: 'cookie', user: { id: 'cookie-user' } });
   });
 
+  it('lets app guests (X-Guest-Token) mutate without an Origin, but not plain cookie requests', async () => {
+    const guest = await requestSession(request({ 'X-Guest-Token': 'cd'.repeat(32) }), {
+      mutation: true,
+    });
+    expect(guest?.mode).toBe('cookie');
+    await expect(
+      requestSession(request({ 'X-Guest-Token': 'not-valid' }), { mutation: true }),
+    ).rejects.toMatchObject({ status: 403 });
+  });
+
   it('allows cookie reads without an Origin header', async () => {
     expect((await requestSession(request()))?.user?.id).toBe('cookie-user');
   });
