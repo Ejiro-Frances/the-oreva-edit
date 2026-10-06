@@ -92,9 +92,31 @@ describe('requestSession', () => {
       mutation: true,
     });
     expect(guest?.mode).toBe('cookie');
+    expect(guest?.user).toBeNull();
     await expect(
       requestSession(request({ 'X-Guest-Token': 'not-valid' }), { mutation: true }),
     ).rejects.toMatchObject({ status: 403 });
+  });
+
+  it('never resolves the cookie user for an X-Guest-Token request', async () => {
+    const headers = { 'X-Guest-Token': 'cd'.repeat(32), Origin: origin };
+    for (const mutation of [false, true]) {
+      const session = await requestSession(request(headers), { mutation });
+      expect(session).toMatchObject({ mode: 'cookie', user: null });
+    }
+    const crossSite = await requestSession(
+      request({ 'X-Guest-Token': 'cd'.repeat(32), Origin: 'https://evil.example' }),
+      { mutation: true },
+    );
+    expect(crossSite?.user).toBeNull();
+    expect(mocks.cookieGetUser).not.toHaveBeenCalled();
+  });
+
+  it('keeps the same-origin check for cookie requests without X-Guest-Token', async () => {
+    await expect(
+      requestSession(request({ Origin: 'https://evil.example' }), { mutation: true }),
+    ).rejects.toMatchObject({ status: 403 });
+    expect(mocks.cookieGetUser).not.toHaveBeenCalled();
   });
 
   it('allows cookie reads without an Origin header', async () => {

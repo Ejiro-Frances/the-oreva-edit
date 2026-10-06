@@ -16,6 +16,7 @@ const config: NextConfig = {
         ]
       : [],
   },
+  // CORS must never allow `x-guest-token`: requests carrying it skip the same-origin check.
   async headers() {
     return [
       {
