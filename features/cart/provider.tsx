@@ -67,39 +67,21 @@ export function ShoppingProvider({ children }: { children: React.ReactNode }) {
   useEffect(() => {
     committed.current = { lines, wishlist };
   }, [lines, wishlist]);
-  /** Shows a bag the server returned (customer or guest). */
+  /** The signed-in customer whose bag is shown, readable inside async replies. */
+  const shownUser = useRef<string | null>(null);
+  /**
+   * Shows a bag the server returned (customer or guest). A guest reply while a customer's bag was
+   * shown means the session ended (for example signed out in another tab): the cookie request
+   * was served as a guest instead of failing, so say so rather than switching bags silently.
+   */
   const adopt = useCallback((data: Remote & { signedIn?: boolean; userId?: string }) => {
+    const next = data.signedIn && data.userId ? data.userId : null;
+    if (shownUser.current && !next) setNotice('You were signed out.');
+    shownUser.current = next;
     setLines(plain(data));
     setWishlist(data.wishlist);
-    setUserId(data.signedIn && data.userId ? data.userId : null);
+    setUserId(next);
   }, []);
-  useEffect(() => {
-    let active = true;
-    const legacy = readLegacy();
-    async function restore() {
-      try {
-        // Settles the bag on the server: a customer absorbs their guest bag, and any bag an older
-        // version left in this browser is handed over once.
-        const response = await fetch('/api/shopping', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ action: 'merge', ...legacy }),
-          signal: AbortSignal.timeout(8000),
-        });
-        if (response.ok) {
-          forgetLegacy();
-          if (active) adopt(await response.json());
-        }
-      } catch {
-        /* Offline: the bag shows once the server can be reached. */
-      }
-      if (active) setReady(true);
-    }
-    void restore();
-    return () => {
-      active = false;
-    };
-  }, [adopt]);
   /** Shows the server's bag. Resolves false when it could not be read. */
   const refresh = useCallback(async () => {
     const request = ++sequence.current;
@@ -113,6 +95,40 @@ export function ShoppingProvider({ children }: { children: React.ReactNode }) {
       return false;
     }
   }, [adopt]);
+  useEffect(() => {
+    let active = true;
+    const legacy = readLegacy();
+    /** Settles the bag on the server; false when the merge did not succeed. */
+    async function merge() {
+      try {
+        // A customer absorbs their guest bag, and any bag an older version left in this browser
+        // is handed over once.
+        const response = await fetch('/api/shopping', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ action: 'merge', ...legacy }),
+          signal: AbortSignal.timeout(8000),
+        });
+        if (!response.ok) return false;
+        forgetLegacy();
+        const data = await response.json();
+        if (active) adopt(data);
+        return true;
+      } catch {
+        return false;
+      }
+    }
+    async function restore() {
+      // If the merge fails, still show the bag already saved; the merge is retried next load.
+      if (!(await merge()) && active && !(await refresh()) && active)
+        setNotice('Your bag could not be loaded. Please refresh the page.');
+      if (active) setReady(true);
+    }
+    void restore();
+    return () => {
+      active = false;
+    };
+  }, [adopt, refresh]);
   useEffect(() => {
     const onVisible = () => {
       if (document.visibilityState === 'visible') void refresh();
@@ -152,7 +168,8 @@ export function ShoppingProvider({ children }: { children: React.ReactNode }) {
     })
       .then(async (response) => {
         if (response.status === 401) {
-          // The session ended elsewhere: show this browser's guest bag instead.
+          // A rejected session (bearer-style): show this browser's guest bag instead.
+          shownUser.current = null;
           setUserId(null);
           setNotice('You were signed out.');
           await refresh();
@@ -161,8 +178,9 @@ export function ShoppingProvider({ children }: { children: React.ReactNode }) {
         if (!response.ok) throw new Error('Rejected');
         const data = await response.json();
         if (request !== sequence.current) return;
-        adopt(data);
         if (data.adjusted?.length) setNotice('Quantity updated to what’s in stock');
+        // Adopted last so a "signed out" notice wins over the stock notice.
+        adopt(data);
       })
       .catch(async () => {
         setNotice('Your bag could not be updated. Please try again.');

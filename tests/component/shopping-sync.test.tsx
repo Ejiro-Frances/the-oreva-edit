@@ -175,7 +175,34 @@ describe('signed-in sync', () => {
     await waitFor(() => expect(screen.getByText('count:4')).toBeInTheDocument());
   });
 
-  it('becomes a guest when the session ends', async () => {
+  it('says so when the session ended in another tab and the change lands in the guest bag', async () => {
+    // A cookie session that ended is served as a guest (200), never a 401.
+    fetchMock.mockImplementation((_url: string, init?: RequestInit) => {
+      if (init?.method === 'POST') return respond(view(true, [line(A, 1)]));
+      if (init?.method === 'PATCH') return respond(view(false, [line(A, 3)]));
+      return respond(view(false, []));
+    });
+    renderProvider();
+    await waitFor(() => expect(live.subscribe).toHaveBeenCalledWith('user-1'));
+    await userEvent.click(await screen.findByRole('button', { name: 'set3' }));
+    await waitFor(() =>
+      expect(screen.getByRole('status')).toHaveTextContent('You were signed out.'),
+    );
+    expect(screen.getByText('count:3')).toBeInTheDocument();
+  });
+
+  it('notices a signed-out session on refresh too', async () => {
+    renderProvider();
+    await waitFor(() => expect(live.subscribe).toHaveBeenCalledWith('user-1'));
+    fetchMock.mockImplementation(() => respond(view(false, [])));
+    await act(async () => live.onChange!());
+    await waitFor(() =>
+      expect(screen.getByRole('status')).toHaveTextContent('You were signed out.'),
+    );
+    expect(screen.getByText('count:0')).toBeInTheDocument();
+  });
+
+  it('becomes a guest on an explicit 401', async () => {
     fetchMock.mockImplementation((_url: string, init?: RequestInit) => {
       if (init?.method === 'POST') return respond(view(true, [line(A, 1)]));
       if (init?.method === 'PATCH') return respond({ error: 'Please sign in again.' }, 401);
@@ -196,5 +223,107 @@ describe('guests', () => {
     await screen.findByRole('button', { name: 'add' });
     await waitFor(() => expect(calls('POST')).toHaveLength(1));
     expect(live.subscribe).not.toHaveBeenCalled();
+  });
+});
+
+describe('loading the bag', () => {
+  it('shows the saved bag when the merge is refused, keeping the old keys', async () => {
+    localStorage.setItem('oreva-bag-v1', JSON.stringify([{ variantId: B, quantity: 2 }]));
+    fetchMock.mockImplementation((_url: string, init?: RequestInit) =>
+      init?.method === 'POST'
+        ? respond({ error: 'Server error' }, 500)
+        : respond(view(false, [line(A, 2)])),
+    );
+    renderProvider();
+    await waitFor(() => expect(screen.getByText('count:2')).toBeInTheDocument());
+    expect(calls('GET')).toHaveLength(1);
+    expect(localStorage.getItem('oreva-bag-v1')).not.toBeNull();
+    expect(screen.getByRole('button', { name: 'add' })).toBeEnabled();
+  });
+
+  it('asks for a reload when neither the merge nor the bag can be read', async () => {
+    fetchMock.mockImplementation((_url: string, init?: RequestInit) =>
+      init?.method === 'POST'
+        ? Promise.reject(new TypeError('offline'))
+        : respond({ error: 'Server error' }, 500),
+    );
+    renderProvider();
+    await waitFor(() =>
+      expect(screen.getByRole('status')).toHaveTextContent(
+        'Your bag could not be loaded. Please refresh the page.',
+      ),
+    );
+    expect(calls('GET')).toHaveLength(1);
+    expect(screen.getByText('count:0')).toBeInTheDocument();
+  });
+});
+
+describe('saving changes', () => {
+  it('ignores a slow older reply that arrives after a newer one', async () => {
+    let releaseFirst: (value: Response) => void = () => {};
+    let patches = 0;
+    fetchMock.mockImplementation((_url: string, init?: RequestInit) => {
+      if (init?.method !== 'PATCH') return respond(view(false, []));
+      patches++;
+      if (patches === 1)
+        return new Promise<Response>((resolve) => {
+          releaseFirst = resolve;
+        });
+      return respond(view(false, [line(A, 3)]));
+    });
+    renderProvider();
+    await userEvent.click(await screen.findByRole('button', { name: 'add' }));
+    await userEvent.click(screen.getByRole('button', { name: 'set3' }));
+    await waitFor(() => expect(calls('PATCH')).toHaveLength(2));
+    await waitFor(() => expect(screen.getByText('count:3')).toBeInTheDocument());
+    await act(async () => {
+      releaseFirst((await respond(view(false, [line(A, 1)]))) as Response);
+    });
+    expect(screen.getByText('count:3')).toBeInTheDocument();
+  });
+
+  it('shows the server bag when a change is refused', async () => {
+    fetchMock.mockImplementation((_url: string, init?: RequestInit) => {
+      if (init?.method === 'POST') return respond(view(false, [line(A, 1)]));
+      if (init?.method === 'PATCH') return respond({ error: 'Conflict' }, 409);
+      return respond(view(false, [line(A, 2)]));
+    });
+    renderProvider();
+    await waitFor(() => expect(screen.getByText('count:1')).toBeInTheDocument());
+    await userEvent.click(screen.getByRole('button', { name: 'set3' }));
+    await waitFor(() => expect(screen.getByText('count:2')).toBeInTheDocument());
+    expect(calls('GET')).toHaveLength(1);
+    expect(screen.getByRole('status')).toHaveTextContent(
+      'Your bag could not be updated. Please try again.',
+    );
+  });
+
+  it('restores the previous bag when offline', async () => {
+    fetchMock.mockImplementation((_url: string, init?: RequestInit) =>
+      init?.method === 'POST'
+        ? respond(view(false, [line(A, 1)]))
+        : Promise.reject(new TypeError('offline')),
+    );
+    renderProvider();
+    await waitFor(() => expect(screen.getByText('count:1')).toBeInTheDocument());
+    await userEvent.click(screen.getByRole('button', { name: 'set3' }));
+    await waitFor(() => expect(calls('GET')).toHaveLength(1));
+    await waitFor(() => expect(screen.getByText('count:1')).toBeInTheDocument());
+    expect(screen.getByRole('status')).toHaveTextContent(
+      'Your bag could not be updated. Please try again.',
+    );
+  });
+
+  it('re-reads the bag when the tab becomes visible', async () => {
+    renderProvider();
+    await waitFor(() => expect(calls('POST')).toHaveLength(1));
+    expect(calls('GET')).toHaveLength(0);
+    const visibility = vi.spyOn(document, 'visibilityState', 'get').mockReturnValue('visible');
+    await act(async () => {
+      document.dispatchEvent(new Event('visibilitychange'));
+    });
+    await waitFor(() => expect(screen.getByText('count:2')).toBeInTheDocument());
+    expect(calls('GET')).toHaveLength(1);
+    visibility.mockRestore();
   });
 });
