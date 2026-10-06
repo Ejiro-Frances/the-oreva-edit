@@ -14,7 +14,7 @@ Build and runtime must use the same public environment values. Set the exact HTT
 2. Configure Supabase Auth URLs, Google provider and production callback; bootstrap a staff role using AUTH.md.
 3. Apply migrations, verify RLS and Storage bucket policies, test a restore from backup on staging.
 4. Configure Mailgun domain/DNS, region and sender. Use EMAIL_MODE=mailgun only after controlled delivery verification. Keep capture mode local.
-5. Set a strong CRON_SECRET. Schedule POST /api/internal/email-worker every minute with Authorization: Bearer YOUR_SECRET. Keep the secret in the scheduler's secret store.
+5. Set a strong CRON_SECRET. Schedule POST /api/internal/email-worker every minute with Authorization: Bearer YOUR_SECRET. Keep the secret in the scheduler's secret store. Also apply `202610060001_guest_shopping.sql` and schedule `/api/internal/guest-cleanup` (daily, same `CRON_SECRET` Bearer; `vercel.json` already declares it).
 6. Run all checks and browser tests, then the manual staging acceptance list in TESTING.md. Configure branch protection for both CI jobs.
 7. Set ALLOW_TEST_ORDERS=false on a public deployment. This phase has no payment provider, so real checkout remains unavailable.
 8. Deploy the reviewed build, verify canonical origin/robots/sitemap, OAuth, security headers and customer/admin access.
