@@ -135,6 +135,33 @@ describe('PostgreSQL schema, transactions and RLS', () => {
       ),
     ).rejects.toThrow('cycle');
   });
+  it('keeps guest bags away from browsers', async () => {
+    const hash = 'a'.repeat(64);
+    await db.query(`insert into public.guest_shopping_state(guest_hash, lines) values ($1, '[]')`, [
+      hash,
+    ]);
+    for (const role of ['anon', 'authenticated']) {
+      await db.exec(`set role ${role}`);
+      try {
+        const visible = await db
+          .query('select guest_hash from public.guest_shopping_state')
+          .then((r) => r.rows.length)
+          .catch(() => 0);
+        expect(visible).toBe(0);
+        await expect(
+          db.query(`insert into public.guest_shopping_state(guest_hash) values ($1)`, [
+            'b'.repeat(64),
+          ]),
+        ).rejects.toThrow();
+      } finally {
+        await db.exec('reset role');
+      }
+    }
+    await expect(
+      db.query(`insert into public.guest_shopping_state(guest_hash) values ('not-a-hash')`),
+    ).rejects.toThrow();
+    await db.query('delete from public.guest_shopping_state');
+  });
   it('requires administrator role and valid fulfilment sequence', async () => {
     const { rows } = await db.query<{ id: string }>('select id from public.orders limit 1');
     await expect(
