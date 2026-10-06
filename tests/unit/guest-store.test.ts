@@ -57,3 +57,23 @@ describe('fixture guest store', () => {
     expect(await guestStore('22'.repeat(32)).load()).not.toBeNull();
   });
 });
+
+describe('conditional guest delete', () => {
+  it('keeps a guest change made between the merge read and the delete', async () => {
+    const { guestStore } = await import('@/features/cart/guest-store');
+    const store = guestStore(token);
+    const first = { lines: [], wishlist: [], updated_at: '2026-10-06T00:00:00.000Z' };
+    await store.insert(first);
+    const read = await store.load();
+    const changed = {
+      lines: [{ variantId: variant.id, quantity: 1 }],
+      wishlist: [],
+      updated_at: '2026-10-06T00:00:01.000Z',
+    };
+    expect(await store.update(changed, first.updated_at)).toBe(true);
+    expect(await store.remove(read!.updated_at)).toBe(false);
+    expect((await store.load())?.lines).toEqual(changed.lines);
+    expect(await store.remove(changed.updated_at)).toBe(true);
+    expect(await store.load()).toBeNull();
+  });
+});

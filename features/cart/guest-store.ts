@@ -24,8 +24,11 @@ function fixtureStore(hash: string): ShoppingStore {
       memory.set(hash, structuredClone(values));
       return true;
     },
-    async remove() {
+    async remove(previousUpdatedAt) {
+      const row = memory.get(hash);
+      if (!row || (previousUpdatedAt && row.updated_at !== previousUpdatedAt)) return false;
       memory.delete(hash);
+      return true;
     },
   };
 }
@@ -62,9 +65,12 @@ function databaseStore(hash: string): ShoppingStore {
       if (error) throw error;
       return !!data?.length;
     },
-    async remove() {
-      const { error } = await db.from(TABLE).delete().eq('guest_hash', hash);
+    async remove(previousUpdatedAt) {
+      let query = db.from(TABLE).delete().eq('guest_hash', hash);
+      if (previousUpdatedAt) query = query.eq('updated_at', previousUpdatedAt);
+      const { data, error } = await query.select('guest_hash');
       if (error) throw error;
+      return !!data?.length;
     },
   };
 }

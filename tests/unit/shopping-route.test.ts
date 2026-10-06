@@ -240,3 +240,43 @@ describe('guest merge hardening', () => {
     log.mockRestore();
   });
 });
+
+describe('signing in when the guest bag cannot be read', () => {
+  it('still returns the account bag and logs without the token', async () => {
+    vi.resetModules();
+    vi.doMock('@/features/cart/guest-store', async () => {
+      const actual = await vi.importActual<typeof import('@/features/cart/guest-store')>(
+        '@/features/cart/guest-store',
+      );
+      return {
+        ...actual,
+        guestStore: (token: string) => ({
+          ...actual.guestStore(token),
+          load: async () => {
+            throw new Error('db down');
+          },
+        }),
+      };
+    });
+    const failing = await import('@/app/api/shopping/route');
+    const log = vi.spyOn(console, 'error').mockImplementation(() => {});
+    const fake = fakeShoppingDb({
+      user_id: 'user-1',
+      lines: [{ variantId: other.id, quantity: 1 }],
+      wishlist: [],
+      updated_at: '2026-10-06T00:00:00.000Z',
+    });
+    mocks.session = { db: fake.db, user: { id: 'user-1' }, mode: 'bearer' };
+    const response = await failing.POST(
+      call('POST', { action: 'merge' }, { 'X-Guest-Token': appToken }),
+    );
+    vi.doUnmock('@/features/cart/guest-store');
+    expect(response.status).toBe(200);
+    const body = await response.json();
+    expect(body).toMatchObject({ signedIn: true, userId: 'user-1' });
+    expect(body.lines.map((l: { variantId: string }) => l.variantId)).toEqual([other.id]);
+    expect(log).toHaveBeenCalledWith(JSON.stringify({ event: 'guest_bag_read_failed' }));
+    expect(JSON.stringify(log.mock.calls)).not.toContain(appToken);
+    log.mockRestore();
+  });
+});

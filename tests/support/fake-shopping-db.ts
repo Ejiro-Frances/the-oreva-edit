@@ -47,12 +47,22 @@ export function fakeShoppingDb(
           }),
         }),
       }),
-      delete: () => ({
-        eq: async () => {
-          row = null;
-          return { error: null };
-        },
-      }),
+      delete: () => {
+        let expected: string | undefined;
+        const query = {
+          eq: (column: string, value: string) => {
+            if (column === 'updated_at') expected = value;
+            return query;
+          },
+          select: async () => {
+            if (!row || (expected && row.updated_at !== expected)) return { data: [], error: null };
+            const removed = row;
+            row = null;
+            return { data: [{ user_id: removed.user_id }], error: null };
+          },
+        };
+        return query;
+      },
       insert: (values: FakeRow) => ({
         select: async () => {
           interleave();

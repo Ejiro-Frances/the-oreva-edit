@@ -22,7 +22,11 @@ export type ShoppingStore = {
   update(values: ShoppingValues, previous: string): Promise<boolean>;
   /** False when a row already exists (another device created it first). */
   insert(values: ShoppingValues): Promise<boolean>;
-  remove(): Promise<void>;
+  /**
+   * Deletes the row; with `previousUpdatedAt`, only while it still has that updated_at, so a
+   * change made since it was read survives. False when nothing was deleted.
+   */
+  remove(previousUpdatedAt?: string): Promise<boolean>;
 };
 
 export async function loadShoppingRow(db: SupabaseClient, userId: string) {
@@ -58,9 +62,12 @@ export function userStore(db: SupabaseClient, userId: string): ShoppingStore {
       if (error) throw error;
       return !!data?.length;
     },
-    async remove() {
-      const { error } = await db.from('shopping_state').delete().eq('user_id', userId);
+    async remove(previousUpdatedAt) {
+      let query = db.from('shopping_state').delete().eq('user_id', userId);
+      if (previousUpdatedAt) query = query.eq('updated_at', previousUpdatedAt);
+      const { data, error } = await query.select('user_id');
       if (error) throw error;
+      return !!data?.length;
     },
   };
 }

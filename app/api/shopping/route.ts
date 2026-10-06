@@ -6,7 +6,13 @@ import { rateLimit } from '@/lib/rate-limit';
 import { clientIp } from '@/lib/auth/accounts';
 import { mergeCart } from '@/features/cart/merge';
 import { applyShoppingOps, shoppingOpsSchema } from '@/features/cart/ops';
-import { loadShoppingRow, shoppingView, userStore, writeStore } from '@/features/cart/state';
+import {
+  loadShoppingRow,
+  shoppingView,
+  userStore,
+  writeStore,
+  type ShoppingRow,
+} from '@/features/cart/state';
 import { guestStore } from '@/features/cart/guest-store';
 import { guestToken } from '@/features/cart/guest-token';
 import { getProducts } from '@/features/catalogue/repository';
@@ -72,7 +78,13 @@ export async function POST(request: Request) {
     const token = await guestToken(request, { create: !session?.user });
     if (session?.user) {
       const guest = token ? guestStore(token) : null;
-      const guestRow = guest ? await guest.load() : null;
+      let guestRow: ShoppingRow | null = null;
+      try {
+        guestRow = guest ? await guest.load() : null;
+      } catch {
+        // The account bag is still returned; the guest bag is merged on a later load.
+        console.error(JSON.stringify({ event: 'guest_bag_read_failed' }));
+      }
       const incoming = mergeCart(input.lines, guestRow?.lines ?? [], products);
       const view = await writeStore(userStore(session.db, session.user.id), products, (state) => ({
         lines: mergeCart(incoming, state.lines, products),
@@ -84,7 +96,9 @@ export async function POST(request: Request) {
       }));
       if (guest && guestRow) {
         try {
-          await guest.remove();
+          // Only the bag that was merged is deleted; a guest change made meanwhile survives and
+          // is absorbed (idempotently) on the next load.
+          await guest.remove(guestRow.updated_at);
         } catch {
           // The merge is committed and idempotent; the stale-guest cleanup removes the row later.
           console.error(JSON.stringify({ event: 'guest_bag_delete_failed' }));
